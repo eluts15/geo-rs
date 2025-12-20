@@ -1,10 +1,11 @@
 use std::io;
 
-pub mod mnea_parser;
+pub mod nmea_parser;
 
-use mnea_parser::parse_nmea;
+use nmea_parser::{parse_nmea, run};
 
 fn main() -> io::Result<()> {
     parse_nmea()?;
+    run()?;
     Ok(())
 }
