@@ -5,12 +5,13 @@ use geo_rs::GpsTracker;
 use nmea::Nmea;
 
 pub fn parse_nmea() -> io::Result<()> {
-    //let file = File::open("/dev/serial0")?;
-    // TODO: Temporary test.
-    let test_file_path =
-        "/home/ethanl/personal/learning_projects/rust/embedded/pi/geo-rs/nmea-sample.txt";
+    let file = File::open("/dev/serial0")?;
 
-    let file = File::open(test_file_path)?;
+    // TODO: Temporary test.
+    //let test_file_path =
+    //"/home/ethanl/personal/learning_projects/rust/embedded/pi/geo-rs/nmea-sample.txt";
+    //let file = File::open(test_file_path)?;
+    //let file = File::open(file)?;
     let reader = BufReader::new(file);
 
     let mut nmea = Nmea::default();
@@ -75,11 +76,11 @@ pub fn run() -> io::Result<()> {
     println!("Opening /dev/serial0...");
     println!("Reading GPS data from serial port. Press Ctrl+C to exit.\n");
 
-    //let file = File::open("/dev/serial0")?;
-    let test_file_path =
-        "/home/ethanl/personal/learning_projects/rust/embedded/pi/geo-rs/nmea-sample.txt";
-
-    let file = File::open(test_file_path)?;
+    let file = File::open("/dev/serial0")?;
+    //let test_file_path =
+    //"/home/ethanl/personal/learning_projects/rust/embedded/pi/geo-rs/nmea-sample.txt";
+    //let file = File::open(test_file_path)?;
+    //let file = File::open(file)?;
     let reader = BufReader::new(file);
 
     let mut nmea = Nmea::default();
@@ -95,6 +96,21 @@ pub fn run() -> io::Result<()> {
 
                 // Try to parse the NMEA sentence
                 if let Ok(_) = nmea.parse(trimmed) {
+                    if let Some(num_sats) = nmea.num_of_fix_satellites {
+                        println!("  → Satellites used: {}", num_sats);
+                    }
+
+                    if let Some(hdop) = nmea.hdop {
+                        println!("  → HDOP: {:.2}", hdop);
+                    }
+
+                    if let Some(fix_time) = nmea.fix_time {
+                        println!("  → Fix time: {}", fix_time.format("%H:%M:%S"));
+                    }
+
+                    if let Some(fix_type) = nmea.fix_type {
+                        println!("  → Fix type: {:?}", fix_type);
+                    }
                     // Update tracker with latest GPS data
                     if let (Some(lat), Some(lon)) = (nmea.latitude, nmea.longitude) {
                         tracker.update_position(lat, lon);

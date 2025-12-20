@@ -46,6 +46,7 @@ There also happens to be a few existing libraries written in Rust:
 
 ## Other
 https://ozzmaker.com/forums/topic/nmea-unkown-msg46/
+ stty -F /dev/serial0 -echo
 
 ## Getting data from /dev/serial0
 

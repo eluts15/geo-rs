@@ -57,8 +57,6 @@ impl Position {
     /// bearing: degrees (0-360, where 0 is North)
     /// distance: meters
     pub fn project(&self, bearing: f64, distance: f64) -> Position {
-        const EARTH_RADIUS: f64 = 6371000.0; // meters
-
         let lat1 = self.latitude.to_radians();
         let lon1 = self.longitude.to_radians();
         let brng = bearing.to_radians();
