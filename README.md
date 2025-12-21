@@ -112,3 +112,55 @@ $GPGSV,1,1,01,21,,,16*7C
 $GLGSV,1,1,00*65                                                                                     
 $GPGSV,1,1,00*79
 ```
+
+
+## Writing HAL (Hardware Abstraction Layers)
+[gpio rust library](https://docs.rs/rppal/latest/rppal/gpio/index.html)
+
+
+## GPIO
+[terminology](https://electronicsforyou.com/blog/all-about-raspberry-pi-gpio-pins/)
+Definitions:
+GPIO - General Purpose I/O:
+    - Freely programmable, usable for input or output.
+Communication Protocols:
+    I2C: pin3(SDA), pin5(SCL)
+    SPI: pin19, 21, 23, 24, 26
+    UART: pin8(TX), pin10(RX)
+
+PWM: Imitate analog behavior, used for servo motors
+
+GPIO Modes:
+    - input: the signal on the pin changes from low (0) to high (1).
+    - output: pin sends a signal to a component (i.e. controlling a servo)
+
+The Raspberry Pi GPIO pins operate at 3.3 volts of logic , meaning a high output voltage is 3.3V. 
+Caution : Applying 5V signals directly to a GPIO pin can permanently damage the Pi. In this case, use a voltage divider or logic level shifter.
+
+Dedicated Power pins:
+ 3.3v: pin1, pin17
+ 5v: pin2, pin4
+ ground: multiple pins including 6, 9, 14, 20, 25, 30, 34 and 39
+
+
+I2C: I2C (Inter-Integrated Circuit) is a serial communication standard. 
+It allows multiple devices to connect using just two data lines with the Raspberry Pi . I2C is ideal for sensors, displays, and low-bandwidth chips.
+    SDA(data): pin3
+    SCL(clock): pin5
+
+UART: Provides a way to send data between two devices.
+
+By default, two pins are available on the GPIO header for hardware PWM:
+    - GPIO12 (PWM0) – Pin 32
+    - GPIO13 (PWM1) – Pin 33
+
+
+
+
+
+
+
+
+
+
+

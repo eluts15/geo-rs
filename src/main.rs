@@ -1,11 +1,10 @@
 use std::io;
 
-pub mod nmea_parser;
+pub mod fetch;
 
-use nmea_parser::{parse_nmea, run};
+use fetch::fetch;
 
 fn main() -> io::Result<()> {
-    //parse_nmea()?;
-    run()?;
+    fetch()?;
     Ok(())
 }
