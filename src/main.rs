@@ -16,7 +16,6 @@ use gpio_input::UserInterface;
 //  ● NEUTRAL: Stay at 10° - continue straight
 //  ← LEFT: Now 5° (back toward north) - travel straight on this line
 //  ● NEUTRAL: Stay at 5° - continue straight
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting GPS Navigation System...");
 
