@@ -4,6 +4,6 @@ version = "1.0.0"
 edition = "2024"
 
 [dependencies]
-#gpsd_proto = "1.0.0"
 nmea = "0.6"
+rppal = "0.22.1"
 
