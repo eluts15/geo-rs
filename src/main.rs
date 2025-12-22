@@ -7,7 +7,15 @@ pub mod gpio_input;
 
 use fetch::fetch_with_tracker;
 use geo_rs::GpsTracker;
-use gpio_input::UserInterface; // Replace with your actual crate name
+use gpio_input::UserInterface;
+
+// Usage:
+//  Start: Heading 0° (North)
+//  → RIGHT: Now 5° (slightly northeast) - travel straight on this line
+//  → RIGHT: Now 10° (more east) - travel straight on this NEW line
+//  ● NEUTRAL: Stay at 10° - continue straight
+//  ← LEFT: Now 5° (back toward north) - travel straight on this line
+//  ● NEUTRAL: Stay at 5° - continue straight
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting GPS Navigation System...");
