@@ -1,3 +1,4 @@
+pub mod gpio_input;
 pub mod position;
 pub mod vector;
 
