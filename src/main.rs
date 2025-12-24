@@ -5,6 +5,9 @@ use std::time::Duration;
 pub mod fetch;
 pub mod gpio_input;
 
+#[cfg(test)]
+pub mod mock_gpio;
+
 use fetch::fetch_with_tracker;
 use geo_rs::GpsTracker;
 use gpio_input::UserInterface;

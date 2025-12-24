@@ -5,6 +5,9 @@ pub mod vector;
 use crate::position::Position;
 use crate::vector::Vector;
 
+#[cfg(test)]
+pub mod mock_gpio;
+
 pub struct GpsTracker {
     current_position: Option<Position>,
     current_heading: Option<f64>, // degrees
