@@ -8,5 +8,5 @@ nmea = "0.6"
 rppal = "0.22.1"
 
 [dev-dependencies]
-gpiosim = "0.4.1"
+#gpiosim = "0.4.1"
 

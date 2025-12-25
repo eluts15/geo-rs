@@ -5,6 +5,7 @@ use std::time::Duration;
 pub mod fetch;
 pub mod gpio_input;
 
+// This module is only compiled during testing.
 #[cfg(test)]
 pub mod mock_gpio;
 

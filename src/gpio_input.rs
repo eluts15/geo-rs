@@ -2,18 +2,24 @@ use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
-// Use real rppal in production
+// Use rppal in production
 #[cfg(not(test))]
 use rppal::gpio::{Gpio, InputPin, Level};
 
+// This is only used in testing, not compiled in release.
 #[cfg(test)]
 use crate::mock_gpio::{Gpio, InputPin, Level};
 
-// GPIO Pin assignments for 3-way toggle
+/// GPIO Pin assignments for 3-way toggle
 const GPIO_TOGGLE_LEFT: u8 = 23;
 const GPIO_TOGGLE_RIGHT: u8 = 24;
 
+/// Each button press modifies the bearing in 5.0 degree increments.
+const ADJUST_LEFT_DEGREES: f64 = -5.0;
+const ADJUST_RIGHT_DEGREES: f64 = 5.0;
+
 #[derive(Debug, PartialEq, Clone, Copy)]
+/// 3-way toggle positions.
 pub enum SwitchPosition {
     Left,
     Neutral,
@@ -27,6 +33,7 @@ pub struct UserInterface {
     last_toggle_position: SwitchPosition,
 }
 
+/// Provides methods for interacting with GPIO supported physical hardware.
 impl UserInterface {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         Self::with_pins(GPIO_TOGGLE_LEFT, GPIO_TOGGLE_RIGHT)
@@ -61,14 +68,22 @@ impl UserInterface {
         }
     }
 
+    /// Get the known toggle position.
+    pub fn get_toggle_position(&self) -> SwitchPosition {
+        self.last_toggle_position
+    }
+
+    /// Set the heading.
     pub fn set_heading(&mut self, heading: f64) {
         self.current_heading = ((heading % 360.0) + 360.0) % 360.0;
     }
 
+    /// Get the current heading.
     pub fn get_heading(&self) -> f64 {
         self.current_heading
     }
 
+    /// Set a new heading.
     fn adjust_heading(&mut self, degrees: f64) {
         self.current_heading = ((self.current_heading + degrees) % 360.0 + 360.0) % 360.0;
     }
@@ -82,11 +97,11 @@ impl UserInterface {
 
             match position {
                 SwitchPosition::Left => {
-                    self.adjust_heading(-5.0);
+                    self.adjust_heading(ADJUST_LEFT_DEGREES);
                     println!("← Toggle LEFT: New heading: {:.1}°", self.current_heading);
                 }
                 SwitchPosition::Right => {
-                    self.adjust_heading(5.0);
+                    self.adjust_heading(ADJUST_RIGHT_DEGREES);
                     println!("→ Toggle RIGHT: New heading: {:.1}°", self.current_heading);
                 }
                 SwitchPosition::Neutral => {
@@ -100,10 +115,6 @@ impl UserInterface {
 
         Ok(position_changed)
     }
-
-    pub fn get_toggle_position(&self) -> SwitchPosition {
-        self.last_toggle_position
-    }
 }
 
 #[cfg(test)]
@@ -111,13 +122,15 @@ mod tests {
     use super::*;
     use crate::mock_gpio;
 
+    // region: UNIT_TESTS
     #[test]
     fn test_heading_adjustment() {
-        let mut heading = 0.0;
-        heading = ((heading + 5.0) % 360.0 + 360.0) % 360.0;
+        let mut heading = 0.0; // start bearing NORTH
+        heading = ((heading + 5.0) % 360.0 + 360.0) % 360.0; // increment +5.0 degrees
         assert_eq!(heading, 5.0);
 
-        heading = ((heading - 10.0) % 360.0 + 360.0) % 360.0;
+        // expect wraparound to work as intended
+        heading = ((heading - 10.0) % 360.0 + 360.0) % 360.0; // degrement -10 degrees
         assert_eq!(heading, 355.0);
     }
 
@@ -133,8 +146,9 @@ mod tests {
         assert_eq!(SwitchPosition::Left, SwitchPosition::Left);
         assert_ne!(SwitchPosition::Left, SwitchPosition::Right);
     }
+    // endregion: UNIT_TESTS
 
-    // Mocking GPIO
+    // region MOCK: Mocking GPIO Functionality.
     #[test]
     fn test_toggle_switch_positions() -> Result<(), Box<dyn Error>> {
         mock_gpio::reset_mock_pins();
@@ -142,26 +156,26 @@ mod tests {
         let mut ui = UserInterface::new()?;
 
         // Test neutral
-        mock_gpio::set_mock_pin_level(23, mock_gpio::Level::High);
-        mock_gpio::set_mock_pin_level(24, mock_gpio::Level::High);
+        mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::High);
+        mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::High);
         ui.update()?;
         assert_eq!(ui.get_toggle_position(), SwitchPosition::Neutral);
 
         // Test LEFT
-        mock_gpio::set_mock_pin_level(23, mock_gpio::Level::Low);
+        mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::Low);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
         assert_eq!(ui.get_toggle_position(), SwitchPosition::Left);
         assert_eq!(ui.get_heading(), 355.0);
 
         // Back to neutral
-        mock_gpio::set_mock_pin_level(23, mock_gpio::Level::High);
+        mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::High);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
         assert_eq!(ui.get_toggle_position(), SwitchPosition::Neutral);
 
         // Test RIGHT
-        mock_gpio::set_mock_pin_level(24, mock_gpio::Level::Low);
+        mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
         assert_eq!(ui.get_toggle_position(), SwitchPosition::Right);
@@ -177,41 +191,40 @@ mod tests {
         let mut ui = UserInterface::new()?;
         ui.set_heading(358.0);
 
-        // Press RIGHT twice
-        mock_gpio::set_mock_pin_level(24, mock_gpio::Level::Low);
+        // Press RIGHT once, expect it to wraparound to 3.0
+        mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
-
-        mock_gpio::set_mock_pin_level(24, mock_gpio::Level::High);
-        thread::sleep(Duration::from_millis(50));
-
-        mock_gpio::set_mock_pin_level(24, mock_gpio::Level::Low);
-        thread::sleep(Duration::from_millis(50));
-        ui.update()?;
-
         assert_eq!(ui.get_heading(), 3.0);
 
         Ok(())
     }
 
     #[test]
-    fn test_multiple_adjustments() -> Result<(), Box<dyn Error>> {
+    fn test_multiple_adjustments_with_wraparound() -> Result<(), Box<dyn Error>> {
         mock_gpio::reset_mock_pins();
 
         let mut ui = UserInterface::new()?;
-        ui.set_heading(90.0);
+        ui.set_heading(355.0);
 
+        // 355.0 + 5.0 = 0.0
+        // 0.0 + 5.0 = 5.0
+        // 5.0 + 5.0 = 10.0
         for _ in 0..3 {
-            mock_gpio::set_mock_pin_level(24, mock_gpio::Level::Low);
+            mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
             thread::sleep(Duration::from_millis(50));
             ui.update()?;
+            ui.get_heading();
 
-            mock_gpio::set_mock_pin_level(24, mock_gpio::Level::High);
+            mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::High);
             thread::sleep(Duration::from_millis(50));
+            ui.update()?;
+            ui.get_heading();
         }
 
-        assert_eq!(ui.get_heading(), 105.0);
+        assert_eq!(ui.get_heading(), 10.0);
 
         Ok(())
     }
+    // endregion: MOCK: Mocking GPIO Functionality.
 }
