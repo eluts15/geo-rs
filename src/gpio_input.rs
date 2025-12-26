@@ -6,10 +6,9 @@ use std::time::Duration;
 #[cfg(not(test))]
 use rppal::gpio::{Gpio, InputPin, Level};
 
-// This is only used in testing, not compiled in release.
 #[cfg(test)]
-use crate::mock_gpio::{Gpio, InputPin, Level};
-
+// This is only used in testing, not compiled in release.
+use crate::mock_gpio::{Gpio, InputPin, Level}; // Setting an output pin HIGH outputs ~3.3V; LOW ~0V.
 /// GPIO Pin assignments for 3-way toggle
 const GPIO_TOGGLE_LEFT: u8 = 23;
 const GPIO_TOGGLE_RIGHT: u8 = 24;
@@ -130,6 +129,7 @@ mod tests {
         assert_eq!(heading, 5.0);
 
         // expect wraparound to work as intended
+        // heading = 5.0
         heading = ((heading - 10.0) % 360.0 + 360.0) % 360.0; // degrement -10 degrees
         assert_eq!(heading, 355.0);
     }
