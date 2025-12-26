@@ -13,6 +13,7 @@ pub struct GpsTracker {
     current_position: Option<Position>,
     current_heading: Option<f64>, // degrees
     current_speed: Option<f64>,   // knots
+    num_satellites: Option<u8>,
 }
 
 impl GpsTracker {
@@ -22,7 +23,16 @@ impl GpsTracker {
             current_position: None,
             current_heading: None,
             current_speed: None,
+            num_satellites: None,
         }
+    }
+
+    pub fn update_satellites(&mut self, num_sats: u8) {
+        self.num_satellites = Some(num_sats);
+    }
+
+    pub fn get_num_satellites(&self) -> Option<u8> {
+        self.num_satellites
     }
 
     pub fn get_current_position(&self) -> Option<Position> {

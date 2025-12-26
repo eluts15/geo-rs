@@ -29,6 +29,11 @@ pub fn fetch_with_tracker(tracker: Arc<Mutex<GpsTracker>>) -> io::Result<()> {
                         tracker_lock.update_position(lat, lon);
                     }
 
+                    // Add satellite count
+                    if let Some(num_sats) = nmea.num_of_fix_satellites {
+                        tracker_lock.update_satellites(num_sats.try_into().unwrap());
+                    }
+
                     if let Some(heading) = nmea.true_course {
                         tracker_lock.update_heading(heading.into());
                     }
