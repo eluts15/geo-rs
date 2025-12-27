@@ -17,7 +17,9 @@ use geo_rs::compass::heading_to_azimuth_8point;
 use geo_rs::pwm::ServoController;
 use gpio_input::UserInterface;
 
+/// Look ahead distance in meters.
 const LOOKAHEAD_DISTANCE_M: f64 = 100.0;
+/// How often to output status updates.
 const STATUS_UPDATE_INTERVAL_SECS: u64 = 5;
 const SERVO_UPDATE_INTERVAL_SECS: f64 = 0.1; // 10Hz
 
@@ -79,8 +81,8 @@ fn wait_for_gps_fix(
             drop(tracker_lock);
 
             if let Some(heading) = gps_heading {
-                let (direction, _) = heading_to_azimuth_8point(heading);
-                println!("  GPS heading: {:.1}° ({})", heading, direction);
+                let (azimuth, _) = heading_to_azimuth_8point(heading);
+                println!("  GPS heading: {:.1}° ({})", heading, azimuth);
                 ui.set_heading(heading);
             }
 
@@ -127,11 +129,11 @@ fn initialize_heading_if_needed(tracker: &Arc<Mutex<GpsTracker>>, ui: &mut UserI
         && let Ok(tracker_lock) = tracker.lock()
         && let Some(gps_heading) = tracker_lock.get_current_heading()
     {
-        let (direction, _) = heading_to_azimuth_8point(gps_heading);
+        let (azimuth, _) = heading_to_azimuth_8point(gps_heading);
         ui.set_heading(gps_heading);
         println!(
             "✓ Target heading initialized: {:.1}° ({})",
-            gps_heading, direction
+            gps_heading, azimuth
         );
     }
 }
@@ -143,15 +145,15 @@ fn handle_toggle_changes(
     if ui.update()?
         && let Some(target_heading) = ui.get_heading()
     {
-        let (direction, _) = heading_to_azimuth_8point(target_heading);
+        let (azimuth, _) = heading_to_azimuth_8point(target_heading);
 
         if let Ok(tracker_lock) = tracker.lock() {
             if let Some(_pos) = tracker_lock.get_current_position()
                 && let Some(vector) =
-                    tracker_lock.get_vector_in_direction(target_heading, LOOKAHEAD_DISTANCE_M)
+                    tracker_lock.get_vector_to_azimuth(target_heading, LOOKAHEAD_DISTANCE_M)
             {
                 let target = vector.end_position();
-                println!("  → Target heading: {:.1}° ({})", target_heading, direction);
+                println!("  → Target heading: {:.1}° ({})", target_heading, azimuth);
                 println!("     {}m ahead: {}", LOOKAHEAD_DISTANCE_M, target);
             }
 

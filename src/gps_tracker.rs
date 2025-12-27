@@ -19,39 +19,39 @@ impl GpsTracker {
         }
     }
 
-    pub fn update_satellites(&mut self, num_sats: u8) {
-        self.num_satellites = Some(num_sats);
-    }
-
-    pub fn get_num_satellites(&self) -> Option<u8> {
-        self.num_satellites
-    }
-
     pub fn get_current_position(&self) -> Option<Position> {
         self.current_position
-    }
-
-    pub fn get_current_heading(&self) -> Option<f64> {
-        self.current_heading
-    }
-
-    pub fn get_current_speed(&self) -> Option<f64> {
-        self.current_speed
     }
 
     pub fn update_position(&mut self, lat: f64, lon: f64) {
         self.current_position = Some(Position::new(lat, lon));
     }
 
+    pub fn get_current_heading(&self) -> Option<f64> {
+        self.current_heading
+    }
+
     pub fn update_heading(&mut self, heading: f64) {
         self.current_heading = Some(heading);
+    }
+
+    pub fn get_num_satellites(&self) -> Option<u8> {
+        self.num_satellites
+    }
+
+    pub fn update_satellites(&mut self, num_sats: u8) {
+        self.num_satellites = Some(num_sats);
+    }
+
+    pub fn get_current_speed(&self) -> Option<f64> {
+        self.current_speed
     }
 
     pub fn update_speed(&mut self, speed: f64) {
         self.current_speed = Some(speed);
     }
 
-    /// Create a vector from the current position in the direction we're heading.
+    /// This is where we're currently heading.
     pub fn get_forward_vector(&self, distance: f64) -> Option<Vector> {
         match (self.current_position, self.current_heading) {
             (Some(pos), Some(heading)) => Some(Vector::from_heading(pos, heading, distance)),
@@ -59,8 +59,8 @@ impl GpsTracker {
         }
     }
 
-    /// Get a vector from current position in a specific heading.
-    pub fn get_vector_in_direction(&self, heading: f64, distance: f64) -> Option<Vector> {
+    /// Get a vector from current position in a specific heading (this is where we want to go).
+    pub fn get_vector_to_azimuth(&self, heading: f64, distance: f64) -> Option<Vector> {
         self.current_position
             .map(|pos| Vector::new(pos, heading, distance))
     }
@@ -105,7 +105,7 @@ mod tests {
         let forward = tracker.get_forward_vector(100.0);
         assert!(forward.is_some());
 
-        let directional = tracker.get_vector_in_direction(45.0, 100.0);
+        let directional = tracker.get_vector_to_azimuth(45.0, 100.0);
         assert!(directional.is_some());
     }
 }
