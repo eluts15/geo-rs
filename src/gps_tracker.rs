@@ -69,7 +69,6 @@ impl GpsTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::position::Position;
 
     #[test]
     fn test_gps_tracker_initialization() {
