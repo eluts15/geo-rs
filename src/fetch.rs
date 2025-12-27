@@ -35,7 +35,7 @@ pub fn fetch_with_tracker(tracker: Arc<Mutex<GpsTracker>>) -> io::Result<()> {
 
                     // Add satellite count
                     if let Some(num_sats) = nmea.num_of_fix_satellites {
-                        tracker_lock.update_satellites(num_sats.try_into().unwrap());
+                        tracker_lock.update_satellites(num_sats.try_into().unwrap_or_default());
                     }
 
                     if let Some(speed) = nmea.speed_over_ground {
