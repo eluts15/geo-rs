@@ -27,14 +27,6 @@ impl GpsTracker {
         }
     }
 
-    pub fn update_satellites(&mut self, num_sats: u8) {
-        self.num_satellites = Some(num_sats);
-    }
-
-    pub fn get_num_satellites(&self) -> Option<u8> {
-        self.num_satellites
-    }
-
     pub fn get_current_position(&self) -> Option<Position> {
         self.current_position
     }
@@ -59,7 +51,15 @@ impl GpsTracker {
         self.current_speed = Some(speed);
     }
 
-    /// Create a vector from the current position inthe direction we're heading.
+    pub fn update_satellites(&mut self, num_sats: u8) {
+        self.num_satellites = Some(num_sats);
+    }
+
+    pub fn get_num_satellites(&self) -> Option<u8> {
+        self.num_satellites
+    }
+
+    /// Where GPS says we're going.
     pub fn get_forward_vector(&self, distance: f64) -> Option<Vector> {
         match (self.current_position, self.current_heading) {
             (Some(pos), Some(heading)) => Some(Vector::from_heading(pos, heading, distance)),
@@ -67,10 +67,10 @@ impl GpsTracker {
         }
     }
 
-    /// Get a vector from current position in a specific direction.
-    pub fn get_vector_in_direction(&self, bearing: f64, distance: f64) -> Option<Vector> {
+    /// Where we actually want to go.
+    pub fn get_vector_to_azimuth(&self, heading: f64, distance: f64) -> Option<Vector> {
         self.current_position
-            .map(|pos| Vector::new(pos, bearing, distance))
+            .map(|pos| Vector::new(pos, heading, distance))
     }
 }
 
@@ -95,12 +95,12 @@ mod tests {
     }
 
     #[test]
-    fn test_bearing_calculation() {
+    fn test_heading_calculation() {
         let pos1 = Position::new(48.0, -123.0);
         let pos2 = Position::new(49.0, -123.0); // North
 
-        let bearing = pos1.bearing_to(&pos2);
-        assert!(bearing < 1.0); // Should be close to 0 (North)
+        let heading = pos1.heading_to(&pos2);
+        assert!(heading < 1.0); // Should be close to 0 (North)
     }
 
     #[test]

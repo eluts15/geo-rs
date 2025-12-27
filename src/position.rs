@@ -23,9 +23,9 @@ impl Position {
         }
     }
 
-    /// Calculate bearing from this position to another position.
-    /// Returns the bearing in degrees (0-360, where 0 is North).
-    pub fn bearing_to(&self, other: &Position) -> f64 {
+    /// Calculate heading from this position to another position.
+    /// Returns the heading in degrees (0-360, where 0 is North).
+    pub fn heading_to(&self, other: &Position) -> f64 {
         let lat_from = self.latitude.to_radians();
         let lat_to = other.latitude.to_radians();
         let delta_lon = (other.longitude - self.longitude).to_radians();
@@ -33,9 +33,9 @@ impl Position {
         let y = delta_lon.sin() * lat_to.cos();
         let x = lat_from.cos() * lat_to.sin() - lat_from.sin() * lat_to.cos() * delta_lon.cos();
 
-        let bearing = y.atan2(x).to_degrees();
+        let heading = y.atan2(x).to_degrees();
 
-        (bearing + 360.0) % 360.0
+        (heading + 360.0) % 360.0
     }
 
     /// Calculate distance to another position using Haversine formula.
@@ -55,13 +55,13 @@ impl Position {
         EARTH_RADIUS * c
     }
 
-    /// Project a position forward by a given distance and bearing
-    /// bearing: degrees (0-360, where 0 is North)
+    /// Project a position forward by a given distance and heading
+    /// heading: degrees (0-360, where 0 is North)
     /// distance: meters
-    pub fn project(&self, bearing: f64, distance: f64) -> Position {
+    pub fn project(&self, heading: f64, distance: f64) -> Position {
         let lat1 = self.latitude.to_radians();
         let lon1 = self.longitude.to_radians();
-        let brng = bearing.to_radians();
+        let brng = heading.to_radians();
         let angular_distance = distance / EARTH_RADIUS;
 
         let lat2 = (lat1.sin() * angular_distance.cos()

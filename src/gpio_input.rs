@@ -14,7 +14,7 @@ use crate::mock_gpio::{Gpio, InputPin, Level};
 const GPIO_TOGGLE_LEFT: u8 = 23;
 const GPIO_TOGGLE_RIGHT: u8 = 24;
 
-/// Each button press modifies the bearing in 5.0 degree increments.
+/// Each button press modifies the heading in 5.0 degree increments.
 const ADJUST_LEFT_DEGREES: f64 = -5.0;
 const ADJUST_RIGHT_DEGREES: f64 = 5.0;
 
@@ -139,7 +139,7 @@ mod tests {
     // region: UNIT_TESTS
     #[test]
     fn test_heading_adjustment() {
-        let mut heading = 0.0; // start bearing NORTH
+        let mut heading = 0.0; // start heading NORTH
         heading = ((heading + 5.0) % 360.0 + 360.0) % 360.0; // increment +5.0 degrees
         assert_eq!(heading, 5.0);
 

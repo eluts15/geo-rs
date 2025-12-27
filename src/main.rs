@@ -14,6 +14,8 @@ use geo_rs::GpsTracker;
 use geo_rs::compass::heading_to_azimuth_8point;
 use gpio_input::UserInterface;
 
+const LOOKAHEAD_DISTANCE_M: f64 = 100.0;
+
 // Usage:
 //  Start: Heading set from GPS (e.g., 84.5° East)
 //  → RIGHT: Now 89.5° (adjust +5° from current) - travel straight on this line
@@ -64,9 +66,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             drop(tracker_lock);
 
             if let Some(heading) = gps_heading {
-                let (direction, _) = heading_to_azimuth_8point(heading);
-                println!("  GPS heading: {:.1}° ({})", heading, direction);
-                // Set initial heading from GPS - this is the actual compass direction
+                let (azimuth, _) = heading_to_azimuth_8point(heading);
+                println!(
+                    "  GPS heading (where we're currently going): {:.1}° ({})",
+                    heading, azimuth
+                );
+                // Set initial heading from GPS - this is the actual compass azimuth
                 ui.set_heading(heading);
             }
 
@@ -94,28 +99,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             && let Ok(tracker_lock) = tracker.lock()
             && let Some(gps_heading) = tracker_lock.get_current_heading()
         {
-            let (direction, _) = heading_to_azimuth_8point(gps_heading);
+            let (azimuth, _) = heading_to_azimuth_8point(gps_heading);
             ui.set_heading(gps_heading);
             println!(
                 "✓ Target heading initialized: {:.1}° ({})",
-                gps_heading, direction
+                gps_heading, azimuth
             );
         }
         // Update GPIO and check for toggle changes
         if ui.update()? {
             // Toggle position changed and we have a heading
             if let Some(target_heading) = ui.get_heading() {
-                let (direction, _) = heading_to_azimuth_8point(target_heading);
+                let (azimuth, _) = heading_to_azimuth_8point(target_heading);
 
                 // Get current GPS data
                 if let Ok(tracker_lock) = tracker.lock() {
                     if let Some(_pos) = tracker_lock.get_current_position() {
                         // Calculate target position 100m ahead at new heading
                         if let Some(vector) =
-                            tracker_lock.get_vector_in_direction(target_heading, 100.0)
+                            tracker_lock.get_vector_to_azimuth(target_heading, LOOKAHEAD_DISTANCE_M)
                         {
                             let target = vector.end_position();
-                            println!("  → Target heading: {:.1}° ({})", target_heading, direction);
+                            println!(
+                                "  → Target heading (where we want to go): {:.1}° ({})",
+                                target_heading, azimuth
+                            );
                             println!("     100m ahead: {}", target);
                         }
                     }
@@ -123,7 +131,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Show current GPS heading if available
                     if let Some(gps_heading) = tracker_lock.get_current_heading() {
                         let (gps_dir, _) = heading_to_azimuth_8point(gps_heading);
-                        println!("  → GPS heading: {:.1}° ({})", gps_heading, gps_dir);
+                        println!(
+                            "  → GPS heading (where we're currently heading): {:.1}° ({})",
+                            gps_heading, gps_dir
+                        );
                     } else {
                         println!("  → GPS heading: N/A (speed too low)");
                     }
@@ -131,60 +142,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         } else {
             // Periodically show status updates every 5 seconds when idle
-            if last_status_update.elapsed() >= Duration::from_secs(5) {
+            if last_status_update.elapsed() >= Duration::from_secs(2) {
                 if let Ok(tracker_lock) = tracker.lock()
                     && let Some(pos) = tracker_lock.get_current_position()
                 {
                     println!("\n[Status Update]");
                     println!("  Position: {}", pos);
 
+                    // displays the current heading
+                    if let Some(gps_heading) = tracker_lock.get_current_heading() {
+                        let (gps_dir, _) = heading_to_azimuth_8point(gps_heading);
+                        println!(
+                            "  GPS heading (where we're currently going): {:.1}° ({})",
+                            gps_heading, gps_dir
+                        );
+                    } else {
+                        println!("  GPS heading: N/A (speed too low)");
+                    }
+
+                    // displays the target heading
                     if let Some(target_heading) = ui.get_heading() {
                         let (target_dir, _) = heading_to_azimuth_8point(target_heading);
-                        println!("  Target heading: {:.1}° ({})", target_heading, target_dir);
+                        println!(
+                            "  Target heading (where we want to go): {:.1}° ({})",
+                            target_heading, target_dir
+                        );
                     } else {
                         println!("  Target heading: Waiting for GPS...");
                     }
 
-                    // Add satellite count
+                    // displays the current speed in knots
+                    if let Some(speed) = tracker_lock.get_current_speed() {
+                        println!("  Speed: {:.2} knots", speed);
+                    }
+
+                    // displays the current satellite count
                     if let Some(num_sats) = tracker_lock.get_num_satellites() {
                         println!("  Satellites: {}", num_sats);
                     } else {
                         println!("  Satellites: N/A");
                     }
-
-                    if let Some(gps_heading) = tracker_lock.get_current_heading() {
-                        let (gps_dir, _) = heading_to_azimuth_8point(gps_heading);
-                        println!("  GPS heading: {:.1}° ({})", gps_heading, gps_dir);
-                    } else {
-                        println!("  GPS heading: N/A (speed too low)");
-                    }
-
-                    if let Some(speed) = tracker_lock.get_current_speed() {
-                        println!("  Speed: {:.2} knots\n", speed);
-                    }
-
-                    println!(); // Empty line after status
                 }
+
                 last_status_update = std::time::Instant::now();
-            }
-
-            // Periodically sync with GPS heading when in neutral position
-            if ui.get_toggle_position() == gpio_input::SwitchPosition::Neutral
-                && let Ok(tracker_lock) = tracker.lock()
-                && let Some(gps_heading) = tracker_lock.get_current_heading()
-                && let Some(current) = ui.get_heading()
-            {
-                let diff = (gps_heading - current).abs();
-
-                // Sync if difference is significant
-                if diff > 10.0 && diff < 350.0 {
-                    let (direction, _) = heading_to_azimuth_8point(gps_heading);
-                    ui.set_heading(gps_heading);
-                    println!(
-                        "Synced with GPS heading: {:.1}° ({})",
-                        gps_heading, direction
-                    );
-                }
             }
         }
 

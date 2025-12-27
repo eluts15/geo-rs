@@ -5,7 +5,7 @@ use crate::position::Position;
 #[derive(Clone, Copy, Debug)]
 pub struct Vector {
     pub start: Position,
-    pub bearing: f64,
+    pub heading: f64,
     pub distance: f64,
 }
 
@@ -14,24 +14,24 @@ impl fmt::Display for Vector {
         let end = self.end_position();
         write!(
             f,
-            "Vector: {} -> {} (bearing: {:.1}°, distance: {:.1}m)",
-            self.start, end, self.bearing, self.distance
+            "Vector: {} -> {} (heading: {:.1}°, distance: {:.1}m)",
+            self.start, end, self.heading, self.distance
         )
     }
 }
 
 impl Vector {
-    pub fn new(start: Position, bearing: f64, distance: f64) -> Self {
+    pub fn new(start: Position, heading: f64, distance: f64) -> Self {
         Self {
             start,
-            bearing,
+            heading,
             distance,
         }
     }
 
     /// Get the end position of this vector.
     pub fn end_position(&self) -> Position {
-        self.start.project(self.bearing, self.distance)
+        self.start.project(self.heading, self.distance)
     }
 
     /// Create a vector from the current position using the current heading.
