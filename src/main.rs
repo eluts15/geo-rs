@@ -132,14 +132,13 @@ fn handle_toggle_changes(
         let (direction, _) = heading_to_azimuth_8point(target_heading);
 
         if let Ok(tracker_lock) = tracker.lock() {
-            if let Some(_pos) = tracker_lock.get_current_position() {
-                if let Some(vector) =
+            if let Some(_pos) = tracker_lock.get_current_position()
+                && let Some(vector) =
                     tracker_lock.get_vector_in_direction(target_heading, LOOKAHEAD_DISTANCE_M)
-                {
-                    let target = vector.end_position();
-                    println!("  → Target heading: {:.1}° ({})", target_heading, direction);
-                    println!("     {}m ahead: {}", LOOKAHEAD_DISTANCE_M, target);
-                }
+            {
+                let target = vector.end_position();
+                println!("  → Target heading: {:.1}° ({})", target_heading, direction);
+                println!("     {}m ahead: {}", LOOKAHEAD_DISTANCE_M, target);
             }
 
             if let Some(gps_heading) = tracker_lock.get_current_heading() {
