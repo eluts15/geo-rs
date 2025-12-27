@@ -1,3 +1,4 @@
+use crate::compass_sensor::CompassSensor;
 use crate::position::Position;
 use crate::vector::Vector;
 
@@ -63,6 +64,16 @@ impl GpsTracker {
     pub fn get_vector_to_azimuth(&self, heading: f64, distance: f64) -> Option<Vector> {
         self.current_position
             .map(|pos| Vector::new(pos, heading, distance))
+    }
+
+    pub fn get_current_heading_with_compass(&self, compass: &mut CompassSensor) -> Option<f64> {
+        // Prefer GPS heading when moving
+        if let Some(gps_heading) = self.current_heading {
+            return Some(gps_heading);
+        }
+
+        // Fall back to compass when stationary
+        compass.read_heading().ok()
     }
 }
 

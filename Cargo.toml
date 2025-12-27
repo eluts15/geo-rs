@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2024"
 
 [dependencies]
+lis3mdl = "0.1.0"
 nmea = "0.6"
 rppal = "0.22.1"
 
