@@ -8,34 +8,45 @@ pub mod gpio_input;
 #[cfg(test)]
 pub mod mock_gpio;
 
+#[cfg(test)]
+pub mod mock_pwm;
+
 use fetch::fetch_with_tracker;
 use geo_rs::GpsTracker;
 use geo_rs::compass::heading_to_azimuth_8point;
+use geo_rs::pwm::ServoController;
 use gpio_input::UserInterface;
 
 const LOOKAHEAD_DISTANCE_M: f64 = 100.0;
 const STATUS_UPDATE_INTERVAL_SECS: u64 = 5;
+const SERVO_UPDATE_INTERVAL_SECS: f64 = 0.1; // 10Hz
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting GPS Navigation System...");
 
     let tracker = Arc::new(Mutex::new(GpsTracker::new()));
     let mut ui = UserInterface::new()?;
+    let mut servo = ServoController::new()?;
 
-    initialize_system();
+    initialize_system(&mut servo)?;
     start_gps_thread(Arc::clone(&tracker));
     wait_for_gps_fix(&tracker, &mut ui)?;
 
-    run_main_loop(&tracker, &mut ui)?;
+    run_main_loop(&tracker, &mut ui, &mut servo)?;
 
     Ok(())
 }
 
-fn initialize_system() {
+fn initialize_system(servo: &mut ServoController) -> Result<(), Box<dyn std::error::Error>> {
     println!("GPIO initialized:");
     println!("  Toggle Left:  GPIO 23");
     println!("  Toggle Right: GPIO 24");
+    println!("  Servo PWM:    GPIO 18");
+
+    servo.center()?;
     println!("\nHardware initialization complete.");
+
+    Ok(())
 }
 
 fn start_gps_thread(tracker: Arc<Mutex<GpsTracker>>) {
@@ -96,12 +107,15 @@ fn wait_for_gps_fix(
 fn run_main_loop(
     tracker: &Arc<Mutex<GpsTracker>>,
     ui: &mut UserInterface,
+    servo: &mut ServoController,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut last_status_update = std::time::Instant::now();
+    let mut last_servo_update = std::time::Instant::now();
 
     loop {
         initialize_heading_if_needed(tracker, ui);
         handle_toggle_changes(tracker, ui)?;
+        apply_servo_correction(tracker, ui, servo, &mut last_servo_update)?;
         display_status_update(tracker, ui, &mut last_status_update);
 
         thread::sleep(Duration::from_millis(20));
@@ -132,14 +146,13 @@ fn handle_toggle_changes(
         let (direction, _) = heading_to_azimuth_8point(target_heading);
 
         if let Ok(tracker_lock) = tracker.lock() {
-            if let Some(_pos) = tracker_lock.get_current_position() {
-                if let Some(vector) =
+            if let Some(_pos) = tracker_lock.get_current_position()
+                && let Some(vector) =
                     tracker_lock.get_vector_in_direction(target_heading, LOOKAHEAD_DISTANCE_M)
-                {
-                    let target = vector.end_position();
-                    println!("  → Target heading: {:.1}° ({})", target_heading, direction);
-                    println!("     {}m ahead: {}", LOOKAHEAD_DISTANCE_M, target);
-                }
+            {
+                let target = vector.end_position();
+                println!("  → Target heading: {:.1}° ({})", target_heading, direction);
+                println!("     {}m ahead: {}", LOOKAHEAD_DISTANCE_M, target);
             }
 
             if let Some(gps_heading) = tracker_lock.get_current_heading() {
@@ -194,4 +207,32 @@ fn display_status_update(
         }
         *last_status_update = std::time::Instant::now();
     }
+}
+
+fn apply_servo_correction(
+    tracker: &Arc<Mutex<GpsTracker>>,
+    ui: &UserInterface,
+    servo: &mut ServoController,
+    last_servo_update: &mut std::time::Instant,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dt = last_servo_update.elapsed().as_secs_f64();
+
+    if dt >= SERVO_UPDATE_INTERVAL_SECS {
+        if let Some(target_heading) = ui.get_heading()
+            && let Ok(tracker_lock) = tracker.lock()
+            && let Some(gps_heading) = tracker_lock.get_current_heading()
+        {
+            match servo.auto_steer(target_heading, gps_heading, dt) {
+                Ok(correction) => {
+                    if correction.abs() > 0.1 {
+                        println!("  ⚙ Steering correction: {:.1}°", correction);
+                    }
+                }
+                Err(e) => eprintln!("Servo error: {}", e),
+            }
+        }
+        *last_servo_update = std::time::Instant::now();
+    }
+
+    Ok(())
 }
