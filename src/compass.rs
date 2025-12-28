@@ -1,3 +1,4 @@
+/// Translates numeric headings to 4/8/16-point compass azimuths. (N, NE, E, etc.)
 /// Represents a 16-point compass rose.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Azimuth {
@@ -17,6 +18,12 @@ pub enum Azimuth {
     WNW, // West-NorthWest
     NW,  // North-West
     NNW, // North-NorthWest
+}
+
+impl std::fmt::Display for Azimuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.abbreviation())
+    }
 }
 
 impl Azimuth {
@@ -63,13 +70,7 @@ impl Azimuth {
     }
 }
 
-impl std::fmt::Display for Azimuth {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.abbreviation())
-    }
-}
-
-/// convert the heading to a 16-point compass.
+/// convert the heading to a 16-point compass azimuth.
 pub fn heading_to_azimuth_16point(heading: f64) -> (Azimuth, f64) {
     // normalize heading to 0-360 range
     let normalized = ((heading % 360.0) + 360.0) % 360.0;
@@ -98,7 +99,7 @@ pub fn heading_to_azimuth_16point(heading: f64) -> (Azimuth, f64) {
     (azimuth, normalized)
 }
 
-/// Convert the heading to a 8-point compass.
+/// Convert the heading to a 8-point compass azimuth.
 pub fn heading_to_azimuth_8point(heading: f64) -> (Azimuth, f64) {
     // normalize heading to 0-360 range
     let normalized = ((heading % 360.0) + 360.0) % 360.0;
@@ -118,7 +119,7 @@ pub fn heading_to_azimuth_8point(heading: f64) -> (Azimuth, f64) {
     (azimuth, normalized)
 }
 
-/// Convert the heading to a 4-point compass.
+/// Convert the heading to a 4-point compass azimuth.
 pub fn heading_to_azimuth_4point(heading: f64) -> (Azimuth, f64) {
     // normalize heading to 0-360 range
     let normalized = ((heading % 360.0) + 360.0) % 360.0;
@@ -137,6 +138,31 @@ pub fn heading_to_azimuth_4point(heading: f64) -> (Azimuth, f64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_display() {
+        assert_eq!(format!("{}", Azimuth::N), "N");
+        assert_eq!(format!("{}", Azimuth::NNE), "NNE");
+        assert_eq!(format!("{}", Azimuth::SE), "SE");
+    }
+
+    #[test]
+    fn test_azimuth_names() {
+        assert_eq!(Azimuth::N.name(), "North");
+        assert_eq!(Azimuth::NE.name(), "North-East");
+        assert_eq!(Azimuth::SSW.abbreviation(), "SSW");
+    }
+
+    #[test]
+    fn test_heading_normalization() {
+        let (dir, heading) = heading_to_azimuth_16point(370.0);
+        assert_eq!(heading, 10.0);
+        assert_eq!(dir, Azimuth::N);
+
+        let (dir, heading) = heading_to_azimuth_16point(-10.0);
+        assert_eq!(heading, 350.0);
+        assert_eq!(dir, Azimuth::N);
+    }
 
     #[test]
     fn test_heading_to_azimuth_16point() {
@@ -169,30 +195,5 @@ mod tests {
         assert_eq!(heading_to_azimuth_4point(90.0).0, Azimuth::E);
         assert_eq!(heading_to_azimuth_4point(180.0).0, Azimuth::S);
         assert_eq!(heading_to_azimuth_4point(270.0).0, Azimuth::W);
-    }
-
-    #[test]
-    fn test_azimuth_names() {
-        assert_eq!(Azimuth::N.name(), "North");
-        assert_eq!(Azimuth::NE.name(), "North-East");
-        assert_eq!(Azimuth::SSW.abbreviation(), "SSW");
-    }
-
-    #[test]
-    fn test_heading_normalization() {
-        let (dir, heading) = heading_to_azimuth_16point(370.0);
-        assert_eq!(heading, 10.0);
-        assert_eq!(dir, Azimuth::N);
-
-        let (dir, heading) = heading_to_azimuth_16point(-10.0);
-        assert_eq!(heading, 350.0);
-        assert_eq!(dir, Azimuth::N);
-    }
-
-    #[test]
-    fn test_display() {
-        assert_eq!(format!("{}", Azimuth::N), "N");
-        assert_eq!(format!("{}", Azimuth::NNE), "NNE");
-        assert_eq!(format!("{}", Azimuth::SE), "SE");
     }
 }

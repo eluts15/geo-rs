@@ -30,6 +30,8 @@ impl Vector {
     }
 
     /// Get the end position of this vector.
+    /// TODO: Consider renaming `vector` to something else. It isn't really actually a vector as it
+    /// has an endpoint of 100m (this get's renewed for lack of better wording once it's crossed).
     pub fn end_position(&self) -> Position {
         self.start.project(self.heading, self.distance)
     }

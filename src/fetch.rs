@@ -1,6 +1,10 @@
-use crate::GpsTracker;
 use std::io;
 use std::sync::{Arc, Mutex};
+
+use crate::GpsTracker;
+
+// TODO: Add NMEA sentence validation
+// pub fn validate_sentence() {}
 
 pub fn fetch_with_tracker(tracker: Arc<Mutex<GpsTracker>>) -> io::Result<()> {
     use nmea::Nmea;

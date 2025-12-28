@@ -37,10 +37,15 @@ const KD: f64 = 0.0; // Derivative gain (disabled for now)
 /// Maximum heading error before applying correction (degrees)
 const HEADING_ERROR_DEADBAND: f64 = 2.0;
 
+/// Maximum servo movement rate (degrees per second)
+/// This prevents violent rudder movements that could destabilize the boat
+const MAX_SERVO_RATE: f64 = 40.0;
+
 pub struct ServoController {
     pwm: Pwm,
     integral: f64,
     last_error: f64,
+    current_angle: f64, // Track current servo position for rate limiting
 }
 
 impl ServoController {
@@ -74,6 +79,7 @@ impl ServoController {
             pwm,
             integral: 0.0,
             last_error: 0.0,
+            current_angle: 0.0, // Start at center position
         })
     }
 
@@ -88,7 +94,12 @@ impl ServoController {
         let pulse_us = SERVO_CENTER_PULSE_US
             + (clamped_angle / SERVO_MAX_ANGLE) * (SERVO_MAX_PULSE_US - SERVO_CENTER_PULSE_US);
 
-        self.set_pulse_width_us(pulse_us)
+        self.set_pulse_width_us(pulse_us)?;
+
+        // Track current position
+        self.current_angle = clamped_angle;
+
+        Ok(())
     }
 
     /// Set servo to center position (neutral)
@@ -131,7 +142,10 @@ impl ServoController {
         dt: f64,
     ) -> f64 {
         // Calculate heading error (accounting for wraparound)
-        let mut error = target_heading - current_heading;
+        // NOTE: For boat rudder control, the error sign is inverted.
+        // When heading is too far right, we need positive rudder angle (rudder right)
+        // to push the stern right and turn the bow left.
+        let mut error = current_heading - target_heading;
 
         // Normalize error to -180 to +180 range
         if error > 180.0 {
@@ -163,7 +177,7 @@ impl ServoController {
         correction.clamp(-SERVO_MAX_ANGLE, SERVO_MAX_ANGLE)
     }
 
-    /// Apply automatic heading correction
+    /// Apply automatic heading correction with rate limiting
     ///
     /// # Arguments
     /// * `target_heading` - Desired heading (degrees)
@@ -175,9 +189,22 @@ impl ServoController {
         current_heading: f64,
         dt: f64,
     ) -> Result<f64, Box<dyn Error>> {
-        let correction = self.calculate_correction(target_heading, current_heading, dt);
-        self.set_angle(correction)?;
-        Ok(correction)
+        let desired_correction = self.calculate_correction(target_heading, current_heading, dt);
+
+        // Apply rate limiting to prevent violent movements
+        let max_change = MAX_SERVO_RATE * dt;
+        let angle_diff = desired_correction - self.current_angle;
+
+        let actual_correction = if angle_diff.abs() > max_change {
+            // Limit the change to maximum rate
+            self.current_angle + angle_diff.signum() * max_change
+        } else {
+            // Small change, apply directly
+            desired_correction
+        };
+
+        self.set_angle(actual_correction)?;
+        Ok(actual_correction)
     }
 
     /// Disable PWM output
@@ -204,17 +231,20 @@ mod tests {
     fn test_heading_error_calculation() {
         let mut controller = ServoController::new().unwrap();
 
-        // Test simple error
+        // Test simple error: current heading is 85° (too far left), target is 90°
+        // Rudder should move LEFT (negative) to turn bow right toward target
         let correction = controller.calculate_correction(90.0, 85.0, 0.1);
-        assert!(correction > 0.0); // Should correct right
+        assert!(correction < 0.0); // Should correct left (negative rudder angle)
 
-        // Test wraparound (target 5°, current 355°)
+        // Test wraparound: target 5°, current 355° (too far left of target)
+        // Rudder should move LEFT (negative) to turn bow right toward 5°
         let correction = controller.calculate_correction(5.0, 355.0, 0.1);
-        assert!(correction > 0.0); // Should correct right
-
-        // Test wraparound (target 355°, current 5°)
-        let correction = controller.calculate_correction(355.0, 5.0, 0.1);
         assert!(correction < 0.0); // Should correct left
+
+        // Test wraparound: target 355°, current 5° (too far right of target)
+        // Rudder should move RIGHT (positive) to turn bow left toward 355°
+        let correction = controller.calculate_correction(355.0, 5.0, 0.1);
+        assert!(correction > 0.0); // Should correct right
     }
 
     #[test]
@@ -238,5 +268,72 @@ mod tests {
         assert!(controller.set_angle(100.0).is_ok()); // Should clamp to max
         assert!(controller.set_angle(-100.0).is_ok()); // Should clamp to min
         assert!(controller.set_angle(0.0).is_ok()); // Center
+    }
+
+    #[test]
+    fn test_boat_rudder_steering_logic() {
+        let mut controller = ServoController::new().unwrap();
+
+        // Scenario 1: Boat heading too far RIGHT (100°), need to go back to 90°
+        // Error = 100° - 90° = +10° (positive error)
+        // Correction should be POSITIVE (rudder moves right)
+        // This pushes stern right, turning bow LEFT back toward 90°
+        let correction = controller.calculate_correction(90.0, 100.0, 0.1);
+        assert!(
+            correction > 0.0,
+            "Rudder should move RIGHT when heading too far right"
+        );
+
+        // Scenario 2: Boat heading too far LEFT (80°), need to go to 90°
+        // Error = 80° - 90° = -10° (negative error)
+        // Correction should be NEGATIVE (rudder moves left)
+        // This pushes stern left, turning bow RIGHT toward 90°
+        let correction = controller.calculate_correction(90.0, 80.0, 0.1);
+        assert!(
+            correction < 0.0,
+            "Rudder should move LEFT when heading too far left"
+        );
+
+        // Scenario 3: On target - should return 0 within deadband
+        let correction = controller.calculate_correction(90.0, 90.5, 0.1);
+        assert_eq!(correction, 0.0, "Should not correct when within deadband");
+    }
+
+    #[test]
+    fn test_servo_rate_limiting() {
+        let mut controller = ServoController::new().unwrap();
+
+        // Start at center (0°)
+        assert_eq!(controller.current_angle, 0.0);
+
+        // Large correction needed: heading 0°, target 90° → error = -90°
+        // With dt=0.1s and MAX_SERVO_RATE=20°/s, max change = 2°
+        let correction = controller.auto_steer(90.0, 0.0, 0.1).unwrap();
+
+        // Should move toward -90° but limited to 2° change
+        assert!(
+            (correction - (-2.0)).abs() < 0.1,
+            "First step should be limited to -2°, got {:.1}°",
+            correction
+        );
+        assert_eq!(controller.current_angle, correction);
+
+        // Next update: should move another 2°
+        let correction = controller.auto_steer(90.0, 0.0, 0.1).unwrap();
+        assert!(
+            (correction - (-4.0)).abs() < 0.1,
+            "Second step should be -4° total, got {:.1}°",
+            correction
+        );
+
+        // Simulate reaching close to target
+        controller.current_angle = -88.0;
+
+        // Small correction needed, should apply directly (no rate limit needed)
+        let correction = controller.auto_steer(90.0, 2.0, 0.1).unwrap();
+        assert!(
+            (correction - (-88.0)).abs() < 0.1,
+            "Small corrections should apply directly"
+        );
     }
 }

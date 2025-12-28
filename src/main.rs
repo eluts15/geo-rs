@@ -123,7 +123,7 @@ fn wait_for_gps_fix(
             if let Some(heading) = gps_heading {
                 let (azimuth, _) = heading_to_azimuth_8point(heading);
                 println!("  GPS heading: {:.1}° ({})", heading, azimuth);
-                ui.set_heading(heading);
+                ui.update_gps_heading(heading);
             }
 
             if let Some(speed) = gps_speed {
@@ -195,9 +195,9 @@ fn initialize_heading_if_needed(tracker: &Arc<Mutex<GpsTracker>>, ui: &mut UserI
         && let Some(gps_heading) = tracker_lock.get_current_heading()
     {
         let (azimuth, _) = heading_to_azimuth_8point(gps_heading);
-        ui.set_heading(gps_heading);
+        ui.update_gps_heading(gps_heading);
         println!(
-            "✓ Target heading initialized: {:.1}° ({})",
+            "✓ GPS heading acquired: {:.1}° ({}) | Offset: 0.0° (following GPS)",
             gps_heading, azimuth
         );
     }
@@ -237,7 +237,7 @@ fn handle_toggle_changes(
 fn display_status_update(
     tracker: &Arc<Mutex<GpsTracker>>,
     compass: &mut Option<CompassSensor>,
-    ui: &UserInterface,
+    ui: &mut UserInterface,
     last_status_update: &mut std::time::Instant,
 ) {
     if last_status_update.elapsed() >= Duration::from_secs(STATUS_UPDATE_INTERVAL_SECS) {
@@ -249,9 +249,10 @@ fn display_status_update(
 
             if let Some(target_heading) = ui.get_heading() {
                 let (target_azimuth, _) = heading_to_azimuth_8point(target_heading);
+                let offset = ui.get_heading_offset();
                 println!(
-                    "  Target heading: {:.1}° ({})",
-                    target_heading, target_azimuth
+                    "  Target heading: {:.1}° ({}) [Offset: {:.1}°]",
+                    target_heading, target_azimuth, offset
                 );
             } else {
                 println!("  Target heading: Waiting for GPS...");
@@ -290,7 +291,7 @@ fn display_status_update(
 fn apply_servo_correction(
     tracker: &Arc<Mutex<GpsTracker>>,
     compass: &mut Option<CompassSensor>,
-    ui: &UserInterface,
+    ui: &mut UserInterface,
     servo: &mut ServoController,
     last_servo_update: &mut std::time::Instant,
     last_correction: &mut f64,
@@ -307,6 +308,9 @@ fn apply_servo_correction(
                 .or_else(|| compass.as_mut().and_then(|c| c.read_heading().ok()));
 
             if let Some(heading) = current_heading {
+                // Update UI with current GPS heading for servo range limiting
+                ui.update_gps_heading(heading);
+
                 match servo.auto_steer(target_heading, heading, dt) {
                     Ok(correction) => {
                         // Only print if correction changed by more than 0.5°

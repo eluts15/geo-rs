@@ -2,13 +2,14 @@ use rppal::i2c::I2c;
 use std::error::Error;
 
 const LSM303D_ADDR: u16 = 0x1C;
-const CTRL0: u8 = 0x1F;
-const CTRL1: u8 = 0x20;
-const CTRL2: u8 = 0x21;
-const CTRL5: u8 = 0x24;
-const CTRL6: u8 = 0x25;
-const CTRL7: u8 = 0x26;
-const OUT_X_L_M: u8 = 0x08;
+
+// const CTRL0: u8 = 0x1F;
+// const CTRL1: u8 = 0x20;
+// const CTRL2: u8 = 0x21;
+// const CTRL5: u8 = 0x24;
+// const CTRL6: u8 = 0x25;
+// const CTRL7: u8 = 0x26;
+// const OUT_X_L_M: u8 = 0x08;
 
 pub struct CompassSensor {
     i2c: I2c,

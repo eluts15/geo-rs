@@ -60,12 +60,13 @@ impl GpsTracker {
         }
     }
 
-    /// Get a vector from current position in a specific heading (this is where we want to go).
+    /// This is where we want be heading.
     pub fn get_vector_to_azimuth(&self, heading: f64, distance: f64) -> Option<Vector> {
         self.current_position
             .map(|pos| Vector::new(pos, heading, distance))
     }
 
+    /// TODO: This isn't currently implemented yet.
     pub fn get_current_heading_with_compass(&self, compass: &mut CompassSensor) -> Option<f64> {
         // Prefer GPS heading when moving
         if let Some(gps_heading) = self.current_heading {
