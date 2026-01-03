@@ -6,6 +6,7 @@ pub struct GpsTracker {
     current_position: Option<Position>,
     current_heading: Option<f64>, // degrees
     current_speed: Option<f64>,   // knots
+    current_hdop: Option<f32>,
     num_satellites: Option<u8>,
 }
 
@@ -16,6 +17,7 @@ impl GpsTracker {
             current_position: None,
             current_heading: None,
             current_speed: None,
+            current_hdop: None,
             num_satellites: None,
         }
     }
@@ -52,6 +54,14 @@ impl GpsTracker {
         self.current_speed = Some(speed);
     }
 
+    pub fn get_current_hdop(&self) -> Option<f32> {
+        self.current_hdop
+    }
+
+    pub fn update_hdop(&mut self, hdop: f32) {
+        self.current_hdop = Some(hdop)
+    }
+
     /// This is where we're currently heading.
     pub fn get_forward_vector(&self, distance: f64) -> Option<Vector> {
         match (self.current_position, self.current_heading) {
@@ -66,7 +76,6 @@ impl GpsTracker {
             .map(|pos| Vector::new(pos, heading, distance))
     }
 
-    /// TODO: This isn't currently implemented yet.
     pub fn get_current_heading_with_compass(&self, compass: &mut CompassSensor) -> Option<f64> {
         // Prefer GPS heading when moving
         if let Some(gps_heading) = self.current_heading {

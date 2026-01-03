@@ -3,6 +3,14 @@ name = "geo-rs"
 version = "1.0.0"
 edition = "2024"
 
+[[bin]]
+name = "calibrate"
+path = "src/calibrate.rs"
+
+[[bin]]
+name = "geo-rs"
+path = "src/main.rs"
+
 [dependencies]
 lis3mdl = "0.1.0"
 nmea = "0.6"

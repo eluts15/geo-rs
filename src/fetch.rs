@@ -61,6 +61,10 @@ pub fn fetch_with_tracker(tracker: Arc<Mutex<GpsTracker>>) -> io::Result<()> {
                         tracker_lock.update_satellites(num_sats.try_into().unwrap_or(0));
                     }
 
+                    if let Some(hdop) = nmea.hdop {
+                        tracker_lock.update_hdop(hdop);
+                    }
+
                     if let Some(speed) = nmea.speed_over_ground {
                         tracker_lock.update_speed(speed.into());
                     }
