@@ -15,7 +15,3 @@ path = "src/main.rs"
 lis3mdl = "0.1.0"
 nmea = "0.6"
 rppal = "0.22.1"
-
-[dev-dependencies]
-#gpiosim = "0.4.1"
-

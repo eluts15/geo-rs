@@ -10,8 +10,13 @@ pub struct GpsTracker {
     num_satellites: Option<u8>,
 }
 
+impl Default for GpsTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpsTracker {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             current_position: None,
@@ -71,7 +76,7 @@ impl GpsTracker {
     }
 
     /// This is where we want be heading.
-    pub fn get_vector_to_azimuth(&self, heading: f64, distance: f64) -> Option<Vector> {
+    pub fn get_vector_to_direction(&self, heading: f64, distance: f64) -> Option<Vector> {
         self.current_position
             .map(|pos| Vector::new(pos, heading, distance))
     }
@@ -126,7 +131,7 @@ mod tests {
         let forward = tracker.get_forward_vector(100.0);
         assert!(forward.is_some());
 
-        let directional = tracker.get_vector_to_azimuth(45.0, 100.0);
+        let directional = tracker.get_vector_to_direction(45.0, 100.0);
         assert!(directional.is_some());
     }
 }

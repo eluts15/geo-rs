@@ -13,7 +13,7 @@ pub mod mock_pwm;
 
 use fetch::fetch_with_tracker;
 use geo_rs::GpsTracker;
-use geo_rs::compass::heading_to_azimuth_8point;
+use geo_rs::compass::heading_to_direction_8point;
 use geo_rs::compass_sensor::CompassSensor;
 use gpio_input::UserInterface;
 
@@ -101,8 +101,8 @@ fn wait_for_gps_fix(
             }
 
             if let Some(heading) = gps_heading {
-                let (azimuth, _) = heading_to_azimuth_8point(heading);
-                println!("  GPS heading: {:.1}° ({})", heading, azimuth);
+                let (direction, _) = heading_to_direction_8point(heading);
+                println!("  GPS heading: {:.1}° ({})", heading, direction);
                 ui.update_gps_heading(heading);
             }
 
@@ -163,11 +163,11 @@ fn initialize_heading_if_needed(tracker: &Arc<Mutex<GpsTracker>>, ui: &mut UserI
         && let Ok(tracker_lock) = tracker.lock()
         && let Some(gps_heading) = tracker_lock.get_current_heading()
     {
-        let (azimuth, _) = heading_to_azimuth_8point(gps_heading);
+        let (direction, _) = heading_to_direction_8point(gps_heading);
         ui.update_gps_heading(gps_heading);
         println!(
             "✓ GPS heading acquired: {:.1}° ({}) | Offset: 0.0° (following GPS)",
-            gps_heading, azimuth
+            gps_heading, direction
         );
     }
 }
@@ -179,21 +179,21 @@ fn handle_toggle_changes(
     if ui.update()?
         && let Some(target_heading) = ui.get_heading()
     {
-        let (azimuth, _) = heading_to_azimuth_8point(target_heading);
+        let (direction, _) = heading_to_direction_8point(target_heading);
 
         if let Ok(tracker_lock) = tracker.lock() {
             if let Some(_pos) = tracker_lock.get_current_position()
                 && let Some(vector) =
-                    tracker_lock.get_vector_to_azimuth(target_heading, LOOKAHEAD_DISTANCE_M)
+                    tracker_lock.get_vector_to_direction(target_heading, LOOKAHEAD_DISTANCE_M)
             {
                 let target = vector.end_position();
-                println!("  → Target heading: {:.1}° ({})", target_heading, azimuth);
+                println!("  → Target heading: {:.1}° ({})", target_heading, direction);
                 println!("     {}m ahead: {}", LOOKAHEAD_DISTANCE_M, target);
             }
 
             if let Some(gps_heading) = tracker_lock.get_current_heading() {
-                let (gps_azimuth, _) = heading_to_azimuth_8point(gps_heading);
-                println!("  → GPS heading: {:.1}° ({})", gps_heading, gps_azimuth);
+                let (gps_direction, _) = heading_to_direction_8point(gps_heading);
+                println!("  → GPS heading: {:.1}° ({})", gps_heading, gps_direction);
             } else {
                 println!("  → GPS heading: N/A (speed too low)");
             }
@@ -217,11 +217,11 @@ fn display_status_update(
             println!("  Position: {}", pos);
 
             if let Some(target_heading) = ui.get_heading() {
-                let (target_azimuth, _) = heading_to_azimuth_8point(target_heading);
+                let (target_direction, _) = heading_to_direction_8point(target_heading);
                 let offset = ui.get_heading_offset();
                 println!(
                     "  Target heading: {:.1}° ({}) [Offset: {:.1}°]",
-                    target_heading, target_azimuth, offset
+                    target_heading, target_direction, offset
                 );
             } else {
                 println!("  Target heading: Waiting for GPS...");
@@ -244,15 +244,15 @@ fn display_status_update(
             let compass_heading = compass.as_mut().and_then(|c| c.read_heading().ok());
 
             if let Some(heading) = gps_heading {
-                let (gps_azimuth, _) = heading_to_azimuth_8point(heading);
-                println!("  GPS heading: {:.1}° ({})", heading, gps_azimuth);
+                let (gps_direction, _) = heading_to_direction_8point(heading);
+                println!("  GPS heading: {:.1}° ({})", heading, gps_direction);
             } else {
                 println!("  GPS heading: N/A (speed too low)");
             }
 
             if let Some(heading) = compass_heading {
-                let (comp_azimuth, _) = heading_to_azimuth_8point(heading);
-                println!("  Compass heading: {:.1}° ({})", heading, comp_azimuth);
+                let (comp_direction, _) = heading_to_direction_8point(heading);
+                println!("  Compass heading: {:.1}° ({})", heading, comp_direction);
             } else {
                 println!("  Compass heading: N/A");
             }

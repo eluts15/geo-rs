@@ -1,5 +1,6 @@
 pub mod compass;
 pub mod compass_sensor;
+pub mod config;
 pub mod fetch;
 pub mod gpio_input;
 pub mod gps_tracker;

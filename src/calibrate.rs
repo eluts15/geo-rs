@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         if let Ok((x, y)) = compass.read_raw_magnetometer() {
-            // Update min/max
+            // update min/max
             if x < x_min {
                 x_min = x;
             }
@@ -51,11 +51,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             sample_count += 1;
 
-            // Calculate offsets (center of circle)
+            // calculate offsets (center of circle)
             let x_offset = (x_min + x_max) / 2.0;
             let y_offset = (y_min + y_max) / 2.0;
 
-            // Print update every 10 samples
+            // print update every 10 samples
             if sample_count % 10 == 0 {
                 println!(
                     "{:^8} | {:>7.0} to {:>7.0} | {:>7.0} to {:>7.0} | X: {:>7.0}  Y: {:>7.0}",

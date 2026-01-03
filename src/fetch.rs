@@ -1,15 +1,14 @@
+use crate::GpsTracker;
+use std::fs::File;
 use std::io;
+use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 
-use crate::GpsTracker;
-
-// TODO: Add NMEA sentence validation
+// TODO: add NMEA sentence validation
 // pub fn validate_sentence() {}
 
 pub fn fetch_with_tracker(tracker: Arc<Mutex<GpsTracker>>) -> io::Result<()> {
     use nmea::Nmea;
-    use std::fs::File;
-    use std::io::{BufRead, BufReader};
 
     println!("Opening /dev/serial0...");
 
@@ -44,7 +43,7 @@ pub fn fetch_with_tracker(tracker: Arc<Mutex<GpsTracker>>) -> io::Result<()> {
                 {
                     sentence_count += 1;
 
-                    // Log first valid sentence
+                    // log first valid sentence
                     if sentence_count == 1 {
                         println!("✓ Receiving GPS data");
                     }
