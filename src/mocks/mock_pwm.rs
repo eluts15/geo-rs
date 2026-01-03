@@ -1,9 +1,8 @@
 // This file is only compiled during tests
 
 use std::cell::RefCell;
-
 thread_local! {
-    static MOCK_PWM_DUTY: RefCell<f64> = RefCell::new(0.5);
+    static MOCK_PWM_DUTY: RefCell<f64> = const { RefCell::new(0.5) }
 }
 
 pub struct Pwm {

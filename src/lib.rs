@@ -1,4 +1,6 @@
 pub mod compass;
+pub mod compass_sensor;
+pub mod config;
 pub mod fetch;
 pub mod gpio_input;
 pub mod gps_tracker;
@@ -12,7 +14,7 @@ pub use position::Position;
 pub use vector::Vector;
 
 #[cfg(test)]
-pub mod mock_gpio;
+pub(crate) mod mocks;
 
-#[cfg(test)]
-pub mod mock_pwm;
+//#[cfg(test)]
+//pub mod mock_pwm;

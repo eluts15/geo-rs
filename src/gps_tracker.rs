@@ -1,3 +1,4 @@
+use crate::compass_sensor::CompassSensor;
 use crate::position::Position;
 use crate::vector::Vector;
 
@@ -5,53 +6,68 @@ pub struct GpsTracker {
     current_position: Option<Position>,
     current_heading: Option<f64>, // degrees
     current_speed: Option<f64>,   // knots
+    current_hdop: Option<f32>,
     num_satellites: Option<u8>,
 }
 
+impl Default for GpsTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpsTracker {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             current_position: None,
             current_heading: None,
             current_speed: None,
+            current_hdop: None,
             num_satellites: None,
         }
-    }
-
-    pub fn update_satellites(&mut self, num_sats: u8) {
-        self.num_satellites = Some(num_sats);
-    }
-
-    pub fn get_num_satellites(&self) -> Option<u8> {
-        self.num_satellites
     }
 
     pub fn get_current_position(&self) -> Option<Position> {
         self.current_position
     }
 
-    pub fn get_current_heading(&self) -> Option<f64> {
-        self.current_heading
-    }
-
-    pub fn get_current_speed(&self) -> Option<f64> {
-        self.current_speed
-    }
-
     pub fn update_position(&mut self, lat: f64, lon: f64) {
         self.current_position = Some(Position::new(lat, lon));
+    }
+
+    pub fn get_current_heading(&self) -> Option<f64> {
+        self.current_heading
     }
 
     pub fn update_heading(&mut self, heading: f64) {
         self.current_heading = Some(heading);
     }
 
+    pub fn get_num_satellites(&self) -> Option<u8> {
+        self.num_satellites
+    }
+
+    pub fn update_satellites(&mut self, num_sats: u8) {
+        self.num_satellites = Some(num_sats);
+    }
+
+    pub fn get_current_speed(&self) -> Option<f64> {
+        self.current_speed
+    }
+
     pub fn update_speed(&mut self, speed: f64) {
         self.current_speed = Some(speed);
     }
 
-    /// Create a vector from the current position in the direction we're heading.
+    pub fn get_current_hdop(&self) -> Option<f32> {
+        self.current_hdop
+    }
+
+    pub fn update_hdop(&mut self, hdop: f32) {
+        self.current_hdop = Some(hdop)
+    }
+
+    /// This is where we're currently heading.
     pub fn get_forward_vector(&self, distance: f64) -> Option<Vector> {
         match (self.current_position, self.current_heading) {
             (Some(pos), Some(heading)) => Some(Vector::from_heading(pos, heading, distance)),
@@ -59,10 +75,20 @@ impl GpsTracker {
         }
     }
 
-    /// Get a vector from current position in a specific heading.
-    pub fn get_vector_in_direction(&self, heading: f64, distance: f64) -> Option<Vector> {
+    /// This is where we want be heading.
+    pub fn get_vector_to_direction(&self, heading: f64, distance: f64) -> Option<Vector> {
         self.current_position
             .map(|pos| Vector::new(pos, heading, distance))
+    }
+
+    pub fn get_current_heading_with_compass(&self, compass: &mut CompassSensor) -> Option<f64> {
+        // Prefer GPS heading when moving
+        if let Some(gps_heading) = self.current_heading {
+            return Some(gps_heading);
+        }
+
+        // Fall back to compass when stationary
+        compass.read_heading().ok()
     }
 }
 
@@ -105,7 +131,7 @@ mod tests {
         let forward = tracker.get_forward_vector(100.0);
         assert!(forward.is_some());
 
-        let directional = tracker.get_vector_in_direction(45.0, 100.0);
+        let directional = tracker.get_vector_to_direction(45.0, 100.0);
         assert!(directional.is_some());
     }
 }

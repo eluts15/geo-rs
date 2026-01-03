@@ -48,14 +48,14 @@ impl Pin {
     }
 }
 
-// Test helper function to set pin levels
+// test helper function to set pin levels
 pub fn set_mock_pin_level(pin: u8, level: Level) {
     MOCK_PINS.with(|pins| {
         pins.borrow_mut().insert(pin, level);
     });
 }
 
-// Test helper to reset all pins
+// test helper to reset all pins
 pub fn reset_mock_pins() {
     MOCK_PINS.with(|pins| {
         pins.borrow_mut().clear();

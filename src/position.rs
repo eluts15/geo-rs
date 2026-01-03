@@ -38,9 +38,9 @@ impl Position {
         (heading + 360.0) % 360.0
     }
 
-    /// Calculate distance to another position using Haversine formula.
-    /// Read more here: https://en.wikipedia.org/wiki/Haversine_formula
+    /// Calculate distance from the current position to another position using the Haversine formula.
     /// Returns the distance in meters.
+    /// See: [Haversine Formula](https://en.wikipedia.org/wiki/Haversine_formula)
     pub fn distance_to(&self, other: &Position) -> f64 {
         let lat_from = self.latitude.to_radians();
         let lat_to = other.latitude.to_radians();
@@ -55,9 +55,7 @@ impl Position {
         EARTH_RADIUS * c
     }
 
-    /// Project a position forward by a given distance and heading
-    /// heading: degrees (0-360, where 0 is North)
-    /// distance: meters
+    /// Project a position forward by a given distance and heading.
     pub fn project(&self, heading: f64, distance: f64) -> Position {
         let lat1 = self.latitude.to_radians();
         let lon1 = self.longitude.to_radians();
@@ -100,7 +98,7 @@ mod tests {
     fn test_lat_lon_to_radians() {
         use std::f64::consts::PI;
 
-        // Test known conversions
+        // Test known conversions.
         let pos1 = Position::new(0.0, 0.0); // Equator, Prime Meridian
         assert_eq!(pos1.latitude.to_radians(), 0.0);
         assert_eq!(pos1.longitude.to_radians(), 0.0);
@@ -117,7 +115,7 @@ mod tests {
         assert!((pos4.latitude.to_radians() - PI / 4.0).abs() < 1e-10);
         assert!((pos4.longitude.to_radians() - PI / 2.0).abs() < 1e-10);
 
-        // Test our actual GPS coordinates
+        // Test some actual GPS coordinates.
         let pos5 = Position::new(48.057440, -123.119625);
         let lat_rad = pos5.latitude.to_radians();
         let lon_rad = pos5.longitude.to_radians();
@@ -126,7 +124,7 @@ mod tests {
         println!("Latitude in radians: {:.6}", lat_rad);
         println!("Longitude in radians: {:.6}", lon_rad);
 
-        // Verify conversion back
+        // Verify conversion back.
         assert!((lat_rad.to_degrees() - 48.057440).abs() < 1e-10);
         assert!((lon_rad.to_degrees() - (-123.119625)).abs() < 1e-10);
     }
