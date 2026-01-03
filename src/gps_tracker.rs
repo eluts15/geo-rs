@@ -82,10 +82,10 @@ impl GpsTracker {
     }
 
     pub fn get_current_heading_with_compass(&self, compass: &mut CompassSensor) -> Option<f64> {
-        // Prefer GPS heading when moving
-        if let Some(gps_heading) = self.current_heading {
-            return Some(gps_heading);
-        }
+        //prefer GPS heading when moving
+        // if let Some(gps_heading) = self.current_heading {
+        //     return Some(gps_heading);
+        // }
 
         // Fall back to compass when stationary
         compass.read_heading().ok()
