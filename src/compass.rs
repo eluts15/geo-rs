@@ -148,8 +148,8 @@ mod tests {
 
     #[test]
     fn test_direction_names() {
-        assert_eq!(Direction::N.name(), "North");
-        assert_eq!(Direction::NE.name(), "North-East");
+        assert_eq!(Direction::N.name(), "north");
+        assert_eq!(Direction::NE.name(), "northeast");
         assert_eq!(Direction::SSW.abbreviation(), "SSW");
     }
 

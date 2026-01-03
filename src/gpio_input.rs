@@ -8,7 +8,7 @@ use rppal::gpio::{Gpio, InputPin, Level};
 
 #[cfg(test)]
 // This is only used in testing, not compiled in release.
-use crate::mock_gpio::{Gpio, InputPin, Level};
+use crate::mocks::mock_gpio::{Gpio, InputPin, Level};
 
 /// GPIO Pin assignments for 3-way toggle
 const GPIO_TOGGLE_LEFT: u8 = 23;
@@ -33,8 +33,8 @@ pub enum SwitchPosition {
 pub struct UserInterface {
     toggle_left: InputPin,
     toggle_right: InputPin,
-    heading_offset: f64,      // Offset from GPS heading (default 0°)
-    gps_heading: Option<f64>, // Current GPS heading for range limiting
+    heading_offset: f64,      // offset from GPS heading (default 0°)
+    gps_heading: Option<f64>, // current GPS heading for range limiting
     last_toggle_position: SwitchPosition,
 }
 
@@ -55,8 +55,8 @@ impl UserInterface {
         Ok(Self {
             toggle_left,
             toggle_right,
-            heading_offset: 0.0, // Start with no offset (follow GPS)
-            gps_heading: None,   // Track GPS heading for range limiting
+            heading_offset: 0.0, // start with no offset (follow GPS)
+            gps_heading: None,   // track GPS heading for range limiting
             last_toggle_position: SwitchPosition::Neutral,
         })
     }
@@ -79,13 +79,13 @@ impl UserInterface {
         self.last_toggle_position
     }
 
-    /// Update the current GPS heading (used for range limiting and calculating target)
+    /// Update the current GPS heading (used for range limiting and calculating target).
     pub fn update_gps_heading(&mut self, heading: f64) {
         self.gps_heading = Some(((heading % 360.0) + 360.0) % 360.0);
     }
 
-    /// Get the target heading (GPS heading + offset)
-    /// Returns None if GPS heading not available yet
+    /// Get the target heading (GPS heading + offset).
+    /// Returns None if GPS heading not available yet.
     pub fn get_heading(&self) -> Option<f64> {
         self.gps_heading.map(|gps_hdg| {
             let target = gps_hdg + self.heading_offset;
@@ -93,30 +93,30 @@ impl UserInterface {
         })
     }
 
-    /// Get the current heading offset from GPS
+    /// Get the current heading offset from GPS.
     pub fn get_heading_offset(&self) -> f64 {
         self.heading_offset
     }
 
-    /// Check if GPS heading has been received
+    /// Check if GPS heading has been received.
     pub fn has_heading(&self) -> bool {
         self.gps_heading.is_some()
     }
 
     /// Adjust the heading offset by the specified degrees.
-    /// Returns true if adjustment was applied, false if clamped at servo limit
+    /// Returns true if adjustment was applied, false if clamped at servo limit.
     fn adjust_heading_offset(&mut self, degrees: f64) -> bool {
         let new_offset = self.heading_offset + degrees;
 
-        // Check if new offset exceeds servo limits
+        // check if new offset exceeds servo limits
         if new_offset.abs() > SERVO_MAX_ANGLE {
-            // Clamp to servo limit
+            // clamp to servo limit
             self.heading_offset = new_offset.signum() * SERVO_MAX_ANGLE;
-            return false; // Was clamped
+            return false; // was clamped
         }
 
         self.heading_offset = new_offset;
-        true // Applied successfully
+        true // applied successfully
     }
 
     pub fn update(&mut self) -> Result<bool, Box<dyn Error>> {
@@ -183,9 +183,8 @@ impl UserInterface {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mock_gpio;
+    use crate::mocks::mock_gpio;
 
-    // region: UNIT_TESTS
     #[test]
     fn test_heading_adjustment() {
         let mut heading = 0.0; // start heading NORTH
@@ -217,31 +216,29 @@ mod tests {
 
         let ui = UserInterface::new()?;
 
-        // Should start with no GPS heading and zero offset
+        // should start with no GPS heading and zero offset
         assert!(!ui.has_heading());
         assert_eq!(ui.get_heading(), None);
         assert_eq!(ui.get_heading_offset(), 0.0);
 
         Ok(())
     }
-    // endregion: UNIT_TESTS
 
-    // region MOCK: Mocking GPIO Functionality.
     #[test]
     fn test_toggle_switch_positions() -> Result<(), Box<dyn Error>> {
         mock_gpio::reset_mock_pins();
 
         let mut ui = UserInterface::new()?;
-        // Set initial GPS heading
+        // set initial GPS heading
         ui.update_gps_heading(0.0);
 
-        // Test neutral
+        // test neutral
         mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::High);
         mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::High);
         ui.update()?;
         assert_eq!(ui.get_toggle_position(), SwitchPosition::Neutral);
 
-        // Test LEFT - should create -5° offset
+        // test LEFT - should create -5° offset
         mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::Low);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
@@ -249,13 +246,13 @@ mod tests {
         assert_eq!(ui.get_heading_offset(), -5.0);
         assert_eq!(ui.get_heading(), Some(355.0)); // 0° GPS + (-5°) offset
 
-        // Back to neutral
+        // back to neutral
         mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::High);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
         assert_eq!(ui.get_toggle_position(), SwitchPosition::Neutral);
 
-        // Test RIGHT - should change offset from -5° to 0°
+        // test RIGHT - should change offset from -5° to 0°
         mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
@@ -273,7 +270,7 @@ mod tests {
         let mut ui = UserInterface::new()?;
         ui.update_gps_heading(358.0);
 
-        // Press RIGHT once, offset = +5°, target = 358° + 5° = 363° = 3°
+        // press RIGHT once, offset = +5°, target = 358° + 5° = 363° = 3°
         mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
         thread::sleep(Duration::from_millis(50));
         ui.update()?;
@@ -290,8 +287,8 @@ mod tests {
         let mut ui = UserInterface::new()?;
         ui.update_gps_heading(355.0);
 
-        // Press RIGHT 3 times: offset = +15°
-        // Target = 355° + 15° = 370° = 10°
+        // press RIGHT 3 times: offset = +15°
+        // target = 355° + 15° = 370° = 10°
         for _ in 0..3 {
             mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
             thread::sleep(Duration::from_millis(50));
@@ -314,7 +311,7 @@ mod tests {
 
         let mut ui = UserInterface::new()?;
 
-        // Set initial GPS heading - with no button presses, target should match
+        // set initial GPS heading - with no button presses, target should match
         ui.update_gps_heading(45.0);
         assert_eq!(ui.get_heading_offset(), 0.0);
         assert_eq!(ui.get_heading(), Some(45.0));
@@ -338,10 +335,10 @@ mod tests {
 
         let mut ui = UserInterface::new()?;
 
-        // Start at GPS 45°
+        // start at GPS 45°
         ui.update_gps_heading(45.0);
 
-        // Press RIGHT twice to create +10° offset
+        // press RIGHT twice to create +10° offset
         for _ in 0..2 {
             mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
             thread::sleep(Duration::from_millis(50));
@@ -373,10 +370,10 @@ mod tests {
 
         let mut ui = UserInterface::new()?;
 
-        // Set GPS heading to 0° (North)
+        // set GPS heading to 0° (North)
         ui.update_gps_heading(0.0);
 
-        // Try to create +100° offset (beyond +90° servo limit)
+        // try to create +100° offset (beyond +90° servo limit)
         for _ in 0..20 {
             // 20 * 5° = 100°
             mock_gpio::set_mock_pin_level(GPIO_TOGGLE_RIGHT, mock_gpio::Level::Low);
@@ -388,9 +385,9 @@ mod tests {
             ui.update()?;
         }
 
-        // Offset should be clamped to +90°
+        // offset should be clamped to +90°
         assert_eq!(ui.get_heading_offset(), 90.0);
-        // Target heading should be 0° + 90° = 90°
+        // target heading should be 0° + 90° = 90°
         let heading = ui.get_heading().unwrap();
         assert!(
             (heading - 90.0).abs() < 1.0,
@@ -407,10 +404,10 @@ mod tests {
 
         let mut ui = UserInterface::new()?;
 
-        // Set GPS heading to 180° (South)
+        // set GPS heading to 180° (South)
         ui.update_gps_heading(180.0);
 
-        // Try to create -100° offset (beyond -90° servo limit)
+        // try to create -100° offset (beyond -90° servo limit)
         for _ in 0..20 {
             // 20 * -5° = -100°
             mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::Low);
@@ -422,9 +419,9 @@ mod tests {
             ui.update()?;
         }
 
-        // Offset should be clamped to -90°
+        // offset should be clamped to -90°
         assert_eq!(ui.get_heading_offset(), -90.0);
-        // Target heading should be 180° - 90° = 90°
+        // target heading should be 180° - 90° = 90°
         let heading = ui.get_heading().unwrap();
         assert!(
             (heading - 90.0).abs() < 1.0,
@@ -441,10 +438,10 @@ mod tests {
 
         let mut ui = UserInterface::new()?;
 
-        // Set GPS heading to 10° (just past North)
+        // set GPS heading to 10° (just past North)
         ui.update_gps_heading(10.0);
 
-        // Try to create -100° offset (beyond -90° limit)
+        // try to create -100° offset (beyond -90° limit)
         for _ in 0..20 {
             // 20 * -5° = -100°
             mock_gpio::set_mock_pin_level(GPIO_TOGGLE_LEFT, mock_gpio::Level::Low);
@@ -456,9 +453,9 @@ mod tests {
             ui.update()?;
         }
 
-        // Offset should be clamped to -90°
+        // offset should be clamped to -90°
         assert_eq!(ui.get_heading_offset(), -90.0);
-        // Target heading: 10° - 90° = -80° → 280°
+        // target heading: 10° - 90° = -80° → 280°
         let heading = ui.get_heading().unwrap();
         assert!(
             (heading - 280.0).abs() < 1.0,

@@ -6,10 +6,7 @@ pub mod fetch;
 pub mod gpio_input;
 
 #[cfg(test)]
-pub mod mock_gpio;
-
-#[cfg(test)]
-pub mod mock_pwm;
+pub(crate) mod mocks;
 
 use fetch::fetch_with_tracker;
 use geo_rs::GpsTracker;

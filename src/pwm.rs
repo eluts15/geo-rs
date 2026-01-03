@@ -11,7 +11,7 @@ use crate::config::{
 };
 
 #[cfg(test)]
-use crate::mock_pwm::Pwm;
+use crate::mocks::mock_pwm::Pwm;
 
 pub struct ServoController {
     pwm: Pwm,

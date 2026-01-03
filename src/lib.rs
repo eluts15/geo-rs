@@ -14,7 +14,7 @@ pub use position::Position;
 pub use vector::Vector;
 
 #[cfg(test)]
-pub mod mock_gpio;
+pub(crate) mod mocks;
 
-#[cfg(test)]
-pub mod mock_pwm;
+//#[cfg(test)]
+//pub mod mock_pwm;
