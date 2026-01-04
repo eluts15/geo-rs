@@ -2,6 +2,7 @@ use crate::compass_sensor::CompassSensor;
 use crate::position::Position;
 use crate::vector::Vector;
 
+/// Tracks the current position, heading, and satellite connection info.
 pub struct GpsTracker {
     current_position: Option<Position>,
     current_heading: Option<f64>, // degrees

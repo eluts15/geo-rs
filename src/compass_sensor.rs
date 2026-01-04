@@ -5,13 +5,19 @@ use crate::config::{HEADING_OFFSET, X_OFFSET, Y_OFFSET};
 
 const LIS3MDL_ADDR: u16 = 0x1C;
 
-/// LIS3MDL register addresses.
+// LIS3MDL register addresses.
 const WHO_AM_I: u8 = 0x0F;
+/// Temperature enabled, Ultra-high performance mode (X,Y), ODR = 80 Hz.
 const CTRL_REG1: u8 = 0x20;
+/// Full scale ±4 gauss.
 const CTRL_REG2: u8 = 0x21;
+/// Continuous conversion mode.
 const CTRL_REG3: u8 = 0x22;
+/// Ultra-high performance mode (Z-axis), little endian.
 const CTRL_REG4: u8 = 0x23;
+/// Block data update enabled.
 const CTRL_REG5: u8 = 0x24;
+
 const STATUS_REG: u8 = 0x27;
 const OUT_X_L: u8 = 0x28;
 
@@ -58,6 +64,7 @@ impl CompassSensor {
         Ok(Self { i2c })
     }
 
+    /// Read from the device, and return the calibrated heading.
     pub fn read_heading(&mut self) -> Result<f64, Box<dyn Error>> {
         // wait for data to be ready
         let status = self.i2c.smbus_read_byte(STATUS_REG)?;
@@ -65,7 +72,7 @@ impl CompassSensor {
             return Err("Magnetometer data not ready".into());
         }
 
-        // cead 6 bytes starting from OUT_X_L (auto-increment enabled)
+        // read 6 bytes starting from OUT_X_L (auto-increment enabled)
         let mut data = [0u8; 6];
         for (i, item) in data.iter_mut().enumerate() {
             *item = self.i2c.smbus_read_byte(OUT_X_L + i as u8)?;
