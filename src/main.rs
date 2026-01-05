@@ -2,20 +2,18 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-pub mod fetch;
-pub mod gpio_input;
-
-#[cfg(test)]
-pub(crate) mod mocks;
-
-use fetch::fetch_with_tracker;
 use geo_rs::GpsTracker;
 use geo_rs::compass::heading_to_direction_8point;
 use geo_rs::compass_sensor::CompassSensor;
-use gpio_input::UserInterface;
+use geo_rs::config::{
+    LOOKAHEAD_DISTANCE_M, SERVO_UPDATE_INTERVAL_SECS, STATUS_UPDATE_INTERVAL_SECS,
+};
+use geo_rs::fetch::fetch_with_tracker;
+use geo_rs::gpio_input::UserInterface;
+use geo_rs::pwm::ServoController;
 
-const LOOKAHEAD_DISTANCE_M: f64 = 100.0;
-const STATUS_UPDATE_INTERVAL_SECS: u64 = 1;
+#[cfg(test)]
+pub(crate) mod mocks;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting GPS Navigation System...");
@@ -23,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tracker = Arc::new(Mutex::new(GpsTracker::new()));
     let mut ui = UserInterface::new()?;
 
-    // Initialize compass
+    // initialize compass
     let mut compass = match CompassSensor::new() {
         Ok(c) => Some(c),
         Err(e) => {
@@ -32,20 +30,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    initialize_system()?;
+    // try to initialize servo, but don't fail if it's unavailable
+    let mut servo = match ServoController::new() {
+        Ok(s) => {
+            println!("Servo controller initialized on GPIO 18");
+            Some(s)
+        }
+        Err(e) => {
+            eprintln!("Servo not available: {} - running in manual mode only", e);
+            None
+        }
+    };
+
+    initialize_system(&mut servo)?;
     start_gps_thread(Arc::clone(&tracker));
     wait_for_gps_fix(&tracker, &mut ui)?;
 
-    run_main_loop(&tracker, &mut ui, &mut compass)?;
+    run(&tracker, &mut ui, &mut servo, &mut compass)?;
 
     Ok(())
 }
 
-fn initialize_system() -> Result<(), Box<dyn std::error::Error>> {
+fn initialize_system(
+    servo: &mut Option<ServoController>,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("GPIO initialized:");
     println!("  Toggle Left:  GPIO 23");
     println!("  Toggle Right: GPIO 24");
-    println!("  Servo PWM:    Disabled (testing compass only)");
+
+    if let Some(s) = servo {
+        s.center()?;
+        println!("  Servo PWM:    GPIO 18 ✓");
+    } else {
+        println!("  Servo PWM:    Disabled (manual mode)");
+    }
 
     println!("\nHardware initialization complete.");
     Ok(())
@@ -59,7 +77,7 @@ fn start_gps_thread(tracker: Arc<Mutex<GpsTracker>>) {
         }
     });
 
-    // Give GPS thread time to open serial port
+    // give GPS thread time to open serial port
     thread::sleep(Duration::from_millis(100));
 }
 
@@ -68,7 +86,7 @@ fn wait_for_gps_fix(
     ui: &mut UserInterface,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting GPS data collection...");
-    thread::sleep(Duration::from_millis(500)); // Let serial port open
+    thread::sleep(Duration::from_millis(500)); // let serial port open
 
     println!("Waiting for GPS fix...");
     println!("  (Make sure GPS antenna has clear view of sky)");
@@ -97,15 +115,15 @@ fn wait_for_gps_fix(
                 println!("  Satellites: {}", sats);
             }
 
-            if let Some(heading) = gps_heading {
-                let (direction, _) = heading_to_direction_8point(heading);
-                println!("  GPS heading: {:.1}° ({})", heading, direction);
-                ui.update_gps_heading(heading);
-            }
+            // if let Some(heading) = gps_heading {
+            //     let (direction, _) = heading_to_direction_8point(heading);
+            //     println!("  GPS heading: {:.1}° ({})", heading, direction);
+            //     ui.update_gps_heading(heading);
+            // }
 
-            if let Some(speed) = gps_speed {
-                println!("  Speed: {:.2} knots", speed);
-            }
+            //  if let Some(speed) = gps_speed {
+            //      println!("  Speed: {:.2} knots", speed);
+            //  }
 
             if let Some(hdop) = hdop {
                 println!("  hdop: {:.2} ", hdop);
@@ -116,14 +134,14 @@ fn wait_for_gps_fix(
 
         fix_attempts += 1;
 
-        // Show progress every 3 seconds
+        // show progress every 3 seconds
         if fix_attempts % 6 == 0 {
             let elapsed = start_time.elapsed().as_secs();
             print!("\r  Waiting for GPS fix... {}s", elapsed);
             std::io::Write::flush(&mut std::io::stdout()).ok();
         }
 
-        // Show reminder after 30 seconds
+        // show reminder after 30 seconds
         if fix_attempts == 60 {
             println!("\n  ⚠ Still waiting for GPS fix...");
             println!("  • Check antenna connection");
@@ -138,16 +156,31 @@ fn wait_for_gps_fix(
     Ok(())
 }
 
-fn run_main_loop(
+fn run(
     tracker: &Arc<Mutex<GpsTracker>>,
     ui: &mut UserInterface,
+    servo: &mut Option<ServoController>,
     compass: &mut Option<CompassSensor>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut last_status_update = std::time::Instant::now();
+    let mut last_servo_update = std::time::Instant::now();
+    let mut last_correction = 0.0; // track last correction to reduce noise
 
     loop {
         initialize_heading_if_needed(tracker, ui);
         handle_toggle_changes(tracker, ui)?;
+
+        // only apply servo correction if servo is available
+        if let Some(s) = servo {
+            apply_servo_correction(
+                tracker,
+                compass,
+                ui,
+                s,
+                &mut last_servo_update,
+                &mut last_correction,
+            )?;
+        }
 
         display_status_update(tracker, compass, ui, &mut last_status_update);
 
@@ -213,16 +246,16 @@ fn display_status_update(
             println!("\n[Status Update]");
             println!("  Position: {}", pos);
 
-            if let Some(target_heading) = ui.get_heading() {
-                let (target_direction, _) = heading_to_direction_8point(target_heading);
-                let offset = ui.get_heading_offset();
-                println!(
-                    "  Target heading: {:.1}° ({}) [Offset: {:.1}°]",
-                    target_heading, target_direction, offset
-                );
-            } else {
-                println!("  Target heading: Waiting for GPS...");
-            }
+            // if let Some(target_heading) = ui.get_heading() {
+            //     let (target_direction, _) = heading_to_direction_8point(target_heading);
+            //     let offset = ui.get_heading_offset();
+            //     println!(
+            //         "  Target heading: {:.1}° ({}) [Offset: {:.1}°]",
+            //         target_heading, target_direction, offset
+            //     );
+            // } else {
+            //     println!("  Target heading: Waiting for GPS...");
+            // }
 
             if let Some(num_sats) = tracker_lock.get_num_satellites() {
                 println!("  Satellites: {}", num_sats);
@@ -236,7 +269,7 @@ fn display_status_update(
                 println!("  HDOP: N/A");
             }
 
-            // Show both GPS and compass headings
+            // show both GPS and compass headings
             let gps_heading = tracker_lock.get_current_heading();
             let compass_heading = compass.as_mut().and_then(|c| c.read_heading().ok());
 
@@ -254,12 +287,56 @@ fn display_status_update(
                 println!("  Compass heading: N/A");
             }
 
-            if let Some(speed) = tracker_lock.get_current_speed() {
-                println!("  Speed: {:.2} knots", speed);
-            }
+            //  if let Some(speed) = tracker_lock.get_current_speed() {
+            //      println!("  Speed: {:.2} knots", speed);
+            //  }
 
             println!();
         }
         *last_status_update = std::time::Instant::now();
     }
+}
+
+fn apply_servo_correction(
+    tracker: &Arc<Mutex<GpsTracker>>,
+    compass: &mut Option<CompassSensor>,
+    ui: &mut UserInterface,
+    servo: &mut ServoController,
+    last_servo_update: &mut std::time::Instant,
+    last_correction: &mut f64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dt = last_servo_update.elapsed().as_secs_f64();
+
+    if dt >= SERVO_UPDATE_INTERVAL_SECS {
+        if let Some(target_heading) = ui.get_heading()
+            && let Ok(tracker_lock) = tracker.lock()
+        {
+            // try GPS heading first, fall back to compass
+            let current_heading = tracker_lock
+                .get_current_heading()
+                .or_else(|| compass.as_mut().and_then(|c| c.read_heading().ok()));
+
+            if let Some(heading) = current_heading {
+                // update UI with current GPS heading for servo range limiting
+                ui.update_gps_heading(heading);
+
+                match servo.auto_steer(target_heading, heading, dt) {
+                    Ok(correction) => {
+                        // only print if correction changed by more than 0.5°
+                        let correction_change = (correction - *last_correction).abs();
+                        if correction_change > 0.5 {
+                            if correction.abs() > 0.1 {
+                                println!("  ⚙ Steering correction: {:.1}°", correction);
+                            }
+                            *last_correction = correction;
+                        }
+                    }
+                    Err(e) => eprintln!("Servo error: {}", e),
+                }
+            }
+        }
+        *last_servo_update = std::time::Instant::now();
+    }
+
+    Ok(())
 }

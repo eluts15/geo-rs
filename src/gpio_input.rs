@@ -2,6 +2,10 @@ use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
+use crate::config::{
+    ADJUST_LEFT_DEGREES, ADJUST_RIGHT_DEGREES, GPIO_TOGGLE_LEFT, GPIO_TOGGLE_RIGHT, SERVO_MAX_ANGLE,
+};
+
 // Use rppal in production
 #[cfg(not(test))]
 use rppal::gpio::{Gpio, InputPin, Level};
@@ -9,18 +13,6 @@ use rppal::gpio::{Gpio, InputPin, Level};
 #[cfg(test)]
 // This is only used in testing, not compiled in release.
 use crate::mocks::mock_gpio::{Gpio, InputPin, Level};
-
-/// GPIO Pin assignments for 3-way toggle
-const GPIO_TOGGLE_LEFT: u8 = 23;
-const GPIO_TOGGLE_RIGHT: u8 = 24;
-
-/// Each button press modifies the heading in 5.0 degree increments.
-const ADJUST_LEFT_DEGREES: f64 = -5.0;
-const ADJUST_RIGHT_DEGREES: f64 = 5.0;
-
-/// Maximum servo deflection angle (degrees)
-/// This must match the SERVO_MAX_ANGLE in pwm.rs
-const SERVO_MAX_ANGLE: f64 = 90.0;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 /// 3-way toggle positions.

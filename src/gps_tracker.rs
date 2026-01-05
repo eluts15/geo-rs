@@ -2,6 +2,7 @@ use crate::compass_sensor::CompassSensor;
 use crate::position::Position;
 use crate::vector::Vector;
 
+/// Tracks the current position, heading, and satellite connection info.
 pub struct GpsTracker {
     current_position: Option<Position>,
     current_heading: Option<f64>, // degrees
@@ -82,10 +83,10 @@ impl GpsTracker {
     }
 
     pub fn get_current_heading_with_compass(&self, compass: &mut CompassSensor) -> Option<f64> {
-        // Prefer GPS heading when moving
-        if let Some(gps_heading) = self.current_heading {
-            return Some(gps_heading);
-        }
+        //prefer GPS heading when moving
+        // if let Some(gps_heading) = self.current_heading {
+        //     return Some(gps_heading);
+        // }
 
         // Fall back to compass when stationary
         compass.read_heading().ok()
